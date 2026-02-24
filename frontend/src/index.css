@@ -180,3 +180,26 @@
 .preview-shine:hover::after {
   opacity: 1;
 }
+
+@keyframes cardFloat {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.cta-card:hover {
+  transform: translateY(-6px) scale(1.03);
+  box-shadow:
+    0 0 60px rgba(59, 130, 246, 0.25),
+    0 30px 80px rgba(0, 0, 0, 0.7);
+}
+
+.cta-btn:hover {
+  transform: scale(1.05);
+}

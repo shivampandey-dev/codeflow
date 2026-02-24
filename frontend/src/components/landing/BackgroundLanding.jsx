@@ -1,5 +1,5 @@
 import { Box } from "@mantine/core";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import image from "../../Assets/logo.png";
 import {
     Rocket,
@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 import CodePreview from "./CodePreview";
 
-
 export default function BackgroundLanding() {
     const containerRef = useRef(null);
     const [isMobile, setIsMobile] = useState(false);
@@ -32,25 +31,6 @@ export default function BackgroundLanding() {
         return () => window.removeEventListener("resize", check);
     }, []);
 
-    /* ================= PARALLAX ================= */
-
-    useEffect(() => {
-        if (isMobile) return;
-
-        const el = containerRef.current;
-
-        const handleMove = (e) => {
-            const x = (e.clientX / window.innerWidth - 0.5) * 20;
-            const y = (e.clientY / window.innerHeight - 0.5) * 20;
-
-            el?.style.setProperty("--parallax-x", `${x}px`);
-            el?.style.setProperty("--parallax-y", `${y}px`);
-        };
-
-        window.addEventListener("mousemove", handleMove);
-        return () => window.removeEventListener("mousemove", handleMove);
-    }, [isMobile]);
-
     const outerSize = isMobile ? "140vw" : "820px";
     const middleSize = isMobile ? "105vw" : "600px";
     const innerSize = isMobile ? "75vw" : "420px";
@@ -59,20 +39,16 @@ export default function BackgroundLanding() {
         <Box
             ref={containerRef}
             style={{
-                position: "absolute",
+                position: "fixed",
                 inset: 0,
                 overflow: "hidden",
                 background: "#010205",
                 zIndex: -1,
             }}
         >
-            {/* ================= NEURAL BACKGROUND ================= */}
-
-
             <NeuralBackground />
 
             {/* ================= FLOATING PARTICLES ================= */}
-
             {[...Array(isMobile ? 10 : 20)].map((_, i) => {
                 const size = Math.random() * 4 + 2;
 
@@ -91,21 +67,21 @@ export default function BackgroundLanding() {
                             animation: `float ${6 + Math.random() * 6}s ease-in-out infinite`,
                             filter: "blur(0.6px)",
                             boxShadow: `
-                    0 0 6px rgba(255,255,255,0.8),
-                    0 0 12px rgba(59,130,246,0.4)
-                `,
+                                0 0 6px rgba(255,255,255,0.8),
+                                0 0 12px rgba(59,130,246,0.4)
+                            `,
                             pointerEvents: "none",
                         }}
                     />
                 );
             })}
 
-            {/* ================= RINGS ================= */}
+            {/* ================= RINGS WRAPPER ================= */}
             <Box
                 style={{
                     position: "absolute",
                     left: "50%",
-                    top: isMobile ? "42%" : "50%",   // ✅ responsive vertical shift
+                    top: isMobile ? "42%" : "50%",
                     transform: "translate(-50%, -50%)",
                     width: 0,
                     height: 0,
@@ -137,13 +113,14 @@ export default function BackgroundLanding() {
                 <Ring
                     size={innerSize}
                     speed="40s"
-                    headings={[]}   // ✅ removed SANDBOX text
+                    headings={[]}
                     glow="rgba(167,139,250,0.15)"
                     color="#a78bfa"
-                    isInner
                 />
 
-                {/* ✅ LOGO ON TOP OF INNER RING */}
+                <CenterCore isMobile={isMobile} />
+
+                {/* LOGO */}
                 <Box
                     style={{
                         position: "absolute",
@@ -157,7 +134,7 @@ export default function BackgroundLanding() {
                     <Box
                         style={{
                             transform: isMobile
-                                ? `translateY(calc(-75vw / 2))`   // inner ring radius
+                                ? `translateY(calc(-75vw / 2))`
                                 : `translateY(-210px)`
                         }}
                     >
@@ -167,25 +144,21 @@ export default function BackgroundLanding() {
                             style={{
                                 height: isMobile ? 94 : 156,
                                 width: "auto",
-
                                 filter: "drop-shadow(0 0 18px rgba(99,102,241,0.45))",
-
                                 animation: "logoPulse 4s ease-in-out infinite",
-
                                 userSelect: "none",
                             }}
                         />
                     </Box>
                 </Box>
-
             </Box>
+
             <CodePreview />
-            <CenterCore />
         </Box>
     );
 }
 
-/* ================= NEURAL NETWORK ================= */
+/* ================= NEURAL BACKGROUND ================= */
 
 function NeuralBackground() {
     const ref = useRef(null);
@@ -217,12 +190,7 @@ function NeuralBackground() {
                 pointerEvents: "none",
             }}
         >
-            <g
-                ref={ref}
-                style={{
-                    animation: "neuralFloat 30s ease-in-out infinite",
-                }}
-            >
+            <g ref={ref} style={{ animation: "neuralFloat 30s ease-in-out infinite" }}>
                 {lines.map((_, i) => {
                     const x1 = Math.random() * 100;
                     const y1 = Math.random() * 100;
@@ -273,27 +241,17 @@ function Ring({ size, speed, reverse, glow, headings, color }) {
                     border: "1px solid rgba(255,255,255,0.08)",
                     boxShadow: `0 0 30px ${glow}`,
                     position: "relative",
-                    animation: `rotateOrbit ${speed} linear infinite ${reverse ? "reverse" : ""
-                        }`,
+                    animation: `rotateOrbit ${speed} linear infinite ${reverse ? "reverse" : ""}`,
                 }}
             >
                 {headings.map((h, i) => (
-                    <Box
-                        key={i}
-                        style={{
-                            position: "absolute",
-                            inset: 0,
-                            transform: `rotate(${h.angle}deg)`,
-                        }}
-                    >
-                        {/* EXACT SAME METHOD AS YOUR WORKING VERSION */}
+                    <Box key={i} style={{ position: "absolute", inset: 0, transform: `rotate(${h.angle}deg)` }}>
                         <Box
                             style={{
                                 position: "absolute",
                                 top: -12,
                                 left: "50%",
                                 transform: "translateX(-50%)",
-
                                 color,
                                 fontSize: 12,
                                 letterSpacing: 1,
@@ -310,31 +268,26 @@ function Ring({ size, speed, reverse, glow, headings, color }) {
         </Box>
     );
 }
-/* ================= CENTER CORE ================= */
 
 /* ================= CENTER CORE ================= */
 
-function CenterCore() {
-
+function CenterCore({ isMobile }) {
     const iconSet = [
-        Rocket,
-        Zap,
-        Sparkles,
-        Code,
-        Cpu,
-        Boxes,
-        Flame,
-        Atom,
-        Brain,
-        Shield,
-        Cloud,
-        Database,
-        Workflow,
-        Gauge,
-        Orbit,
+        Rocket, Zap, Sparkles, Code, Cpu, Boxes,
+        Flame, Atom, Brain, Shield, Cloud,
+        Database, Workflow, Gauge, Orbit,
     ];
 
     const total = 14;
+
+    const positions = useMemo(() => {
+        const spread = isMobile ? 70 : 120;
+
+        return Array.from({ length: total }).map(() => ({
+            x: (Math.random() - 0.5) * spread,
+            y: (Math.random() - 0.5) * spread,
+        }));
+    }, [isMobile]);
 
     return (
         <Box
@@ -346,26 +299,13 @@ function CenterCore() {
                 pointerEvents: "none",
             }}
         >
-            {Array.from({ length: total }).map((_, i) => {
-
+            {positions.map((p, i) => {
                 const Icon = iconSet[i % iconSet.length];
-
-                // random position around center
-                const x = (Math.random() - 0.5) * 120;
-                const y = (Math.random() - 0.5) * 120;
-
-                // random color using index
                 const hue = (i * 360) / total;
                 const color = `hsl(${hue}, 85%, 65%)`;
 
                 return (
-                    <Bubble
-                        key={i}
-                        x={x}
-                        y={y}
-                        delay={i * 0.3}
-                        color={color}
-                    >
+                    <Bubble key={i} x={p.x} y={p.y} delay={i * 0.3} color={color}>
                         <Icon size={16} />
                     </Bubble>
                 );
@@ -374,15 +314,12 @@ function CenterCore() {
     );
 }
 
-
 /* ================= BUBBLE ================= */
 
 function Bubble({ children, x, y, delay = 0, color }) {
-
     const ref = useRef(null);
     const [drag, setDrag] = useState(false);
     const [pos, setPos] = useState({ x: 0, y: 0 });
-
     const start = useRef({ x: 0, y: 0 });
 
     const onPointerDown = (e) => {
@@ -396,18 +333,14 @@ function Bubble({ children, x, y, delay = 0, color }) {
 
     const onPointerMove = (e) => {
         if (!drag) return;
-
         const nx = e.clientX - start.current.x;
         const ny = e.clientY - start.current.y;
-
         setPos({ x: nx, y: ny });
     };
 
     const onPointerUp = (e) => {
         setDrag(false);
         ref.current.releasePointerCapture(e.pointerId);
-
-        // return to original smoothly
         setPos({ x: 0, y: 0 });
     };
 
@@ -423,14 +356,10 @@ function Bubble({ children, x, y, delay = 0, color }) {
                 top: "50%",
                 "--bx": `${x}px`,
                 "--by": `${y}px`,
-
-                animation: drag ? "none" :
-                    `bubbleMove 7s cubic-bezier(.4,0,.2,1) ${delay}s infinite`,
-
+                animation: drag ? "none" : `bubbleMove 7s cubic-bezier(.4,0,.2,1) ${delay}s infinite`,
                 transform: drag
                     ? `translate(calc(-50% + ${x + pos.x}px), calc(-50% + ${y + pos.y}px))`
                     : undefined,
-
                 pointerEvents: "auto",
                 cursor: drag ? "grabbing" : "grab",
             }}
@@ -443,14 +372,11 @@ function Bubble({ children, x, y, delay = 0, color }) {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-
                     background: "rgba(255,255,255,0.04)",
                     border: "1px solid rgba(255,255,255,0.10)",
                     backdropFilter: "blur(10px)",
-
                     color: color,
                     boxShadow: `0 0 6px ${color}40`,
-                    transition: "transform 0.3s ease",
                 }}
             >
                 {children}
