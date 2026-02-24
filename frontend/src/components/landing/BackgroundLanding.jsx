@@ -1,5 +1,6 @@
 import { Box } from "@mantine/core";
 import { useEffect, useRef, useState } from "react";
+import image from "../../Assets/logo.png";
 import {
     Rocket,
     Zap,
@@ -17,6 +18,7 @@ import {
     Gauge,
     Orbit,
 } from "lucide-react";
+
 
 export default function BackgroundLanding() {
     const containerRef = useRef(null);
@@ -64,6 +66,7 @@ export default function BackgroundLanding() {
             }}
         >
             {/* ================= NEURAL BACKGROUND ================= */}
+
 
             <NeuralBackground />
 
@@ -133,13 +136,47 @@ export default function BackgroundLanding() {
                 <Ring
                     size={innerSize}
                     speed="40s"
-                    headings={[
-                        { text: "SANDBOX", angle: 260 },
-                    ]}
+                    headings={[]}   // ✅ removed SANDBOX text
                     glow="rgba(167,139,250,0.15)"
                     color="#a78bfa"
                     isInner
                 />
+
+                {/* ✅ LOGO ON TOP OF INNER RING */}
+                <Box
+                    style={{
+                        position: "absolute",
+                        left: "50%",
+                        top: "50%",
+                        transform: "translate(-50%, -50%)",
+                        pointerEvents: "none",
+                        zIndex: 10,
+                    }}
+                >
+                    <Box
+                        style={{
+                            transform: isMobile
+                                ? `translateY(-37vw)`   // mobile radius
+                                : `translateY(-210px)`, // desktop radius
+                        }}
+                    >
+                        <img
+                            src={image}
+                            alt="Codeflow"
+                            style={{
+                                height: isMobile ? 34 : 156,
+                                width: "auto",
+
+                                filter: "drop-shadow(0 0 18px rgba(99,102,241,0.45))",
+
+                                animation: "logoPulse 4s ease-in-out infinite",
+
+                                userSelect: "none",
+                            }}
+                        />
+                    </Box>
+                </Box>
+
             </Box>
             <CenterCore />
         </Box>

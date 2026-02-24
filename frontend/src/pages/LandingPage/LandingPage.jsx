@@ -1,6 +1,5 @@
 import { Box, Group } from "@mantine/core";
 import BackgroundLanding from "../../components/landing/BackgroundLanding";
-import HeroSection from "../../components/landing/HeroSection";
 import TemplateCard from "../../components/landing/TemplateCard";
 import UploadCard from "../../components/landing/UploadCard";
 
