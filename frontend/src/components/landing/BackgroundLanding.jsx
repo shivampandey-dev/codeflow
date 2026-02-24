@@ -1,5 +1,22 @@
 import { Box } from "@mantine/core";
 import { useEffect, useRef, useState } from "react";
+import {
+    Rocket,
+    Zap,
+    Sparkles,
+    Code,
+    Cpu,
+    Boxes,
+    Flame,
+    Atom,
+    Brain,
+    Shield,
+    Cloud,
+    Database,
+    Workflow,
+    Gauge,
+    Orbit,
+} from "lucide-react";
 
 export default function BackgroundLanding() {
     const containerRef = useRef(null);
@@ -12,7 +29,8 @@ export default function BackgroundLanding() {
         return () => window.removeEventListener("resize", check);
     }, []);
 
-    // ===== Mouse Parallax (disable on mobile) =====
+    /* ================= PARALLAX ================= */
+
     useEffect(() => {
         if (isMobile) return;
 
@@ -22,21 +40,17 @@ export default function BackgroundLanding() {
             const x = (e.clientX / window.innerWidth - 0.5) * 20;
             const y = (e.clientY / window.innerHeight - 0.5) * 20;
 
-            el.style.setProperty("--parallax-x", `${x}px`);
-            el.style.setProperty("--parallax-y", `${y}px`);
+            el?.style.setProperty("--parallax-x", `${x}px`);
+            el?.style.setProperty("--parallax-y", `${y}px`);
         };
 
         window.addEventListener("mousemove", handleMove);
         return () => window.removeEventListener("mousemove", handleMove);
     }, [isMobile]);
 
-    // ===== Responsive sizes =====
     const outerSize = isMobile ? "140vw" : "820px";
     const middleSize = isMobile ? "105vw" : "600px";
     const innerSize = isMobile ? "75vw" : "420px";
-
-    const glowSize = isMobile ? "120vw" : "900px";
-    const haloSize = isMobile ? "150vw" : "1100px";
 
     return (
         <Box
@@ -49,91 +63,14 @@ export default function BackgroundLanding() {
                 zIndex: -1,
             }}
         >
-            {/* ================= GRID ================= */}
-            <Box
-                style={{
-                    position: "absolute",
-                    inset: 0,
-                    backgroundImage: `
-            radial-gradient(rgba(255,255,255,0.5) 1.2px, transparent 1.2px),
-            radial-gradient(rgba(255,255,255,0.4) 2.6px, transparent 2.6px)
-          `,
-                    backgroundSize: "28px 28px, 112px 112px",
-                    opacity: 0.22,
-                    WebkitMaskImage:
-                        "radial-gradient(circle at center, black 55%, transparent 100%)",
-                    maskImage:
-                        "radial-gradient(circle at center, black 55%, transparent 100%)",
-                }}
-            />
+            {/* ================= NEURAL BACKGROUND ================= */}
 
-            {/* ================= CENTER GLOW ================= */}
-            <Box
-                style={{
-                    position: "absolute",
-                    width: glowSize,
-                    height: glowSize,
-                    borderRadius: "50%",
-                    left: "50%",
-                    top: "50%",
-                    transform:
-                        "translate(calc(-50% + var(--parallax-x,0px)), calc(-50% + var(--parallax-y,0px)))",
-                    background:
-                        "radial-gradient(circle, rgba(37,100,235,0.28), rgba(37,100,235,0.12), transparent 70%)",
-                    filter: "blur(80px)",
-                    animation: "breathe 10s ease-in-out infinite",
-                }}
-            />
+            <NeuralBackground />
 
-            {/* ================= HALO ================= */}
-            <Box
-                style={{
-                    position: "absolute",
-                    width: haloSize,
-                    height: haloSize,
-                    borderRadius: "50%",
-                    left: "50%",
-                    top: "50%",
-                    transform:
-                        "translate(calc(-50% + var(--parallax-x,0px)), calc(-50% + var(--parallax-y,0px)))",
-                    background:
-                        "radial-gradient(circle, rgba(59,130,246,0.2), transparent 70%)",
-                    filter: "blur(120px)",
-                }}
-            />
+            {/* ================= FLOATING PARTICLES ================= */}
 
-            {/* ================= RINGS ================= */}
-            <Ring
-                size={outerSize}
-                speed="90s"
-                glow="rgba(59,130,246,0.15)"
-                label="JS-FIRST"
-                color="#60a5fa"
-                isMobile={isMobile}
-            />
-
-            <Ring
-                size={middleSize}
-                speed="60s"
-                reverse
-                glow="rgba(52,211,153,0.15)"
-                label="ZERO SETUP"
-                color="#34d399"
-                isMobile={isMobile}
-            />
-
-            <Ring
-                size={innerSize}
-                speed="40s"
-                glow="rgba(167,139,250,0.15)"
-                label="SANDBOX"
-                color="#a78bfa"
-                isMobile={isMobile}
-            />
-
-            {/* ================= PARTICLES ================= */}
-            {[...Array(isMobile ? 8 : 14)].map((_, i) => {
-                const size = Math.random() * 6 + 2;
+            {[...Array(isMobile ? 10 : 20)].map((_, i) => {
+                const size = Math.random() * 4 + 2;
 
                 return (
                     <Box
@@ -143,23 +80,143 @@ export default function BackgroundLanding() {
                             width: size,
                             height: size,
                             borderRadius: "50%",
-                            background: "rgba(255,255,255,0.8)",
+                            background: "rgba(255,255,255,0.9)",
                             top: `${Math.random() * 100}%`,
                             left: `${Math.random() * 100}%`,
-                            opacity: Math.random() * 0.4 + 0.2,
+                            opacity: Math.random() * 0.4 + 0.3,
                             animation: `float ${6 + Math.random() * 6}s ease-in-out infinite`,
-                            filter: "blur(0.5px)",
+                            filter: "blur(0.6px)",
+                            boxShadow: `
+                    0 0 6px rgba(255,255,255,0.8),
+                    0 0 12px rgba(59,130,246,0.4)
+                `,
+                            pointerEvents: "none",
                         }}
                     />
                 );
             })}
+
+            {/* ================= RINGS ================= */}
+            <Box
+                style={{
+                    position: "absolute",
+                    left: "50%",
+                    top: "50%",
+                    transform: "translate(-50%, -50%)",
+                    width: 0,
+                    height: 0,
+                }}
+            >
+                <Ring
+                    size={outerSize}
+                    speed="90s"
+                    headings={[
+                        { text: "JAVASCRIPT", angle: 20 },
+                        { text: "ECOSYSTEM", angle: 200 },
+                    ]}
+                    glow="rgba(59,130,246,0.15)"
+                    color="#60a5fa"
+                />
+
+                <Ring
+                    size={middleSize}
+                    speed="60s"
+                    reverse
+                    headings={[
+                        { text: "ZERO SETUP", angle: 120 },
+                        { text: "INSTANT", angle: 300 },
+                    ]}
+                    glow="rgba(52,211,153,0.15)"
+                    color="#34d399"
+                />
+
+                <Ring
+                    size={innerSize}
+                    speed="40s"
+                    headings={[
+                        { text: "SANDBOX", angle: 260 },
+                    ]}
+                    glow="rgba(167,139,250,0.15)"
+                    color="#a78bfa"
+                    isInner
+                />
+            </Box>
+            <CenterCore />
         </Box>
+    );
+}
+
+/* ================= NEURAL NETWORK ================= */
+
+function NeuralBackground() {
+    const ref = useRef(null);
+
+    useEffect(() => {
+        const move = (e) => {
+            const x = (e.clientX / window.innerWidth - 0.5) * 30;
+            const y = (e.clientY / window.innerHeight - 0.5) * 30;
+
+            if (ref.current) {
+                ref.current.style.transform = `translate(${x}px, ${y}px)`;
+            }
+        };
+
+        window.addEventListener("mousemove", move);
+        return () => window.removeEventListener("mousemove", move);
+    }, []);
+
+    const lines = Array.from({ length: 70 });
+
+    return (
+        <svg
+            width="100%"
+            height="100%"
+            style={{
+                position: "absolute",
+                inset: 0,
+                opacity: 0.35,
+                pointerEvents: "none",
+            }}
+        >
+            <g
+                ref={ref}
+                style={{
+                    animation: "neuralFloat 30s ease-in-out infinite",
+                }}
+            >
+                {lines.map((_, i) => {
+                    const x1 = Math.random() * 100;
+                    const y1 = Math.random() * 100;
+                    const x2 = Math.random() * 100;
+                    const y2 = Math.random() * 100;
+
+                    return (
+                        <line
+                            key={i}
+                            x1={`${x1}%`}
+                            y1={`${y1}%`}
+                            x2={`${x2}%`}
+                            y2={`${y2}%`}
+                            stroke="rgba(59,130,246,0.25)"
+                            strokeWidth="1"
+                        >
+                            <animate
+                                attributeName="opacity"
+                                values="0.1;0.7;0.1"
+                                dur={`${6 + Math.random() * 6}s`}
+                                repeatCount="indefinite"
+                            />
+                        </line>
+                    );
+                })}
+            </g>
+        </svg>
     );
 }
 
 /* ================= RING ================= */
 
-function Ring({ size, speed, reverse, glow, label, color, isMobile }) {
+function Ring({ size, speed, reverse, glow, headings, color }) {
     return (
         <Box
             style={{
@@ -181,21 +238,183 @@ function Ring({ size, speed, reverse, glow, label, color, isMobile }) {
                         }`,
                 }}
             >
-                <Box
-                    style={{
-                        position: "absolute",
-                        top: -12,
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                        color,
-                        fontSize: isMobile ? 10 : 12,
-                        letterSpacing: 1,
-                        textShadow: `0 0 8px ${color}`,
-                        opacity: isMobile ? 0.8 : 1,
-                    }}
-                >
-                    {label}
-                </Box>
+                {headings.map((h, i) => (
+                    <Box
+                        key={i}
+                        style={{
+                            position: "absolute",
+                            inset: 0,
+                            transform: `rotate(${h.angle}deg)`,
+                        }}
+                    >
+                        {/* EXACT SAME METHOD AS YOUR WORKING VERSION */}
+                        <Box
+                            style={{
+                                position: "absolute",
+                                top: -12,
+                                left: "50%",
+                                transform: "translateX(-50%)",
+
+                                color,
+                                fontSize: 12,
+                                letterSpacing: 1,
+                                whiteSpace: "nowrap",
+                                textShadow: `0 0 8px ${color}`,
+                                opacity: 0.9,
+                            }}
+                        >
+                            {h.text}
+                        </Box>
+                    </Box>
+                ))}
+            </Box>
+        </Box>
+    );
+}
+/* ================= CENTER CORE ================= */
+
+/* ================= CENTER CORE ================= */
+
+function CenterCore() {
+
+    const iconSet = [
+        Rocket,
+        Zap,
+        Sparkles,
+        Code,
+        Cpu,
+        Boxes,
+        Flame,
+        Atom,
+        Brain,
+        Shield,
+        Cloud,
+        Database,
+        Workflow,
+        Gauge,
+        Orbit,
+    ];
+
+    const total = 14;
+
+    return (
+        <Box
+            style={{
+                position: "absolute",
+                left: "50%",
+                top: "50%",
+                transform: "translate(-50%, -50%)",
+                pointerEvents: "none",
+            }}
+        >
+            {Array.from({ length: total }).map((_, i) => {
+
+                const Icon = iconSet[i % iconSet.length];
+
+                // random position around center
+                const x = (Math.random() - 0.5) * 120;
+                const y = (Math.random() - 0.5) * 120;
+
+                // random color using index
+                const hue = (i * 360) / total;
+                const color = `hsl(${hue}, 85%, 65%)`;
+
+                return (
+                    <Bubble
+                        key={i}
+                        x={x}
+                        y={y}
+                        delay={i * 0.3}
+                        color={color}
+                    >
+                        <Icon size={16} />
+                    </Bubble>
+                );
+            })}
+        </Box>
+    );
+}
+
+
+/* ================= BUBBLE ================= */
+
+function Bubble({ children, x, y, delay = 0, color }) {
+
+    const ref = useRef(null);
+    const [drag, setDrag] = useState(false);
+    const [pos, setPos] = useState({ x: 0, y: 0 });
+
+    const start = useRef({ x: 0, y: 0 });
+
+    const onPointerDown = (e) => {
+        setDrag(true);
+        start.current = {
+            x: e.clientX - pos.x,
+            y: e.clientY - pos.y,
+        };
+        ref.current.setPointerCapture(e.pointerId);
+    };
+
+    const onPointerMove = (e) => {
+        if (!drag) return;
+
+        const nx = e.clientX - start.current.x;
+        const ny = e.clientY - start.current.y;
+
+        setPos({ x: nx, y: ny });
+    };
+
+    const onPointerUp = (e) => {
+        setDrag(false);
+        ref.current.releasePointerCapture(e.pointerId);
+
+        // return to original smoothly
+        setPos({ x: 0, y: 0 });
+    };
+
+    return (
+        <Box
+            ref={ref}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            style={{
+                position: "absolute",
+                left: "50%",
+                top: "50%",
+                "--bx": `${x}px`,
+                "--by": `${y}px`,
+
+                animation: drag ? "none" :
+                    `bubbleMove 7s cubic-bezier(.4,0,.2,1) ${delay}s infinite`,
+
+                transform: drag
+                    ? `translate(calc(-50% + ${x + pos.x}px), calc(-50% + ${y + pos.y}px))`
+                    : undefined,
+
+                pointerEvents: "auto",
+                cursor: drag ? "grabbing" : "grab",
+            }}
+        >
+            <Box
+                style={{
+                    width: 26,
+                    height: 26,
+                    borderRadius: "50%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.10)",
+                    backdropFilter: "blur(10px)",
+
+                    color: color,
+                    boxShadow: `0 0 6px ${color}40`,
+                    transition: "transform 0.3s ease",
+                }}
+            >
+                {children}
             </Box>
         </Box>
     );
