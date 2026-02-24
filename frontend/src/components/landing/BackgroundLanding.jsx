@@ -18,6 +18,7 @@ import {
     Gauge,
     Orbit,
 } from "lucide-react";
+import CodePreview from "./CodePreview";
 
 
 export default function BackgroundLanding() {
@@ -104,7 +105,7 @@ export default function BackgroundLanding() {
                 style={{
                     position: "absolute",
                     left: "50%",
-                    top: "50%",
+                    top: isMobile ? "42%" : "50%",   // ✅ responsive vertical shift
                     transform: "translate(-50%, -50%)",
                     width: 0,
                     height: 0,
@@ -156,15 +157,15 @@ export default function BackgroundLanding() {
                     <Box
                         style={{
                             transform: isMobile
-                                ? `translateY(-37vw)`   // mobile radius
-                                : `translateY(-210px)`, // desktop radius
+                                ? `translateY(calc(-75vw / 2))`   // inner ring radius
+                                : `translateY(-210px)`
                         }}
                     >
                         <img
                             src={image}
                             alt="Codeflow"
                             style={{
-                                height: isMobile ? 34 : 156,
+                                height: isMobile ? 94 : 156,
                                 width: "auto",
 
                                 filter: "drop-shadow(0 0 18px rgba(99,102,241,0.45))",
@@ -178,6 +179,7 @@ export default function BackgroundLanding() {
                 </Box>
 
             </Box>
+            <CodePreview />
             <CenterCore />
         </Box>
     );
