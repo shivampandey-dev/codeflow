@@ -1,34 +1,41 @@
 import { Box } from "@mantine/core";
-import { useEffect, useRef } from "react";
 import BackgroundLanding from "../../components/landing/BackgroundLanding";
 import CTAButtons from "../../components/landing/CTAButtons";
 import SectionNeuralBackground from "../../components/common/SectionNeuralBackground";
+import "../../components/Style/AllLandingStyle.css";
+import IDEComparisonSection from "../../components/landing/IDEComparisonSection";
+import SectionHero from "../../components/common/SectionHero";
+
 
 export default function LandingPage() {
     return (
         <Box pos="relative">
-
             {/* HERO SECTION */}
             <Box pos="relative" mih="100vh">
                 <BackgroundLanding />
             </Box>
 
-            {/* CTA SECTION */}
+            {/* CTA SECTION - responsive paddings */}
             <Box
-                py={140}
-                px={60}
                 style={{
                     position: "relative",
                     background: "#010205",
                     overflow: "hidden",
                     display: "flex",
                     justifyContent: "center",
+
+                    /* Responsive vertical and horizontal padding */
+                    paddingBlock: "clamp(40px, 12vh, 140px)",      // top/bottom
+                    paddingInline: "clamp(16px, 6vw, 60px)",       // left/right
+
+                    boxSizing: "border-box",                       // critical
+                    width: "100%",
                 }}
             >
-                {/* ✅ NEURAL BACKGROUND */}
+                {/* NEURAL BACKGROUND (absolute, non-layout) */}
                 <SectionNeuralBackground />
 
-                {/* ✅ FADE OVERLAY (smooth transition from hero) */}
+                {/* FADE OVERLAY */}
                 <Box
                     style={{
                         position: "absolute",
@@ -41,18 +48,17 @@ export default function LandingPage() {
               )
             `,
                         pointerEvents: "none",
+                        zIndex: 1,
                     }}
                 />
 
-                {/* CONTENT */}
-                <Box style={{ position: "relative", zIndex: 2 }}>
+                {/* CONTENT (stacked above background) */}
+                <Box style={{ position: "relative", zIndex: 2, width: "100%" }}>
                     <CTAButtons />
+                    <SectionHero title="Why Codeflow" />
+                    <IDEComparisonSection />
                 </Box>
             </Box>
-
         </Box>
     );
 }
-
-/* ================= CTA NEURAL BACKGROUND ================= */
-
