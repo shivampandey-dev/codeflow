@@ -12,22 +12,45 @@ export default function CTAButtons() {
 
     const columns = isBelow720 ? 1 : 2;
 
+    /* ================= REVEAL ================= */
     useEffect(() => {
         const observer = new IntersectionObserver(
-            ([entry]) => setVisible(entry.isIntersecting),
+            ([entry]) => {
+                if (entry.isIntersecting) setVisible(true);
+            },
             { threshold: 0.25 }
         );
+
         if (ref.current) observer.observe(ref.current);
+
         return () => observer.disconnect();
     }, []);
 
+    /* ================= PARALLAX (OPTIMIZED) ================= */
     useEffect(() => {
+        let rafId = null;
+
         const handleScroll = () => {
-            const y = window.scrollY * 0.08;
-            document.documentElement.style.setProperty("--cta-parallax", `${y}px`);
+            if (rafId) return;
+
+            rafId = requestAnimationFrame(() => {
+                const y = window.scrollY * 0.08;
+
+                document.documentElement.style.setProperty(
+                    "--cta-parallax",
+                    `${y}px`
+                );
+
+                rafId = null;
+            });
         };
-        window.addEventListener("scroll", handleScroll);
-        return () => window.removeEventListener("scroll", handleScroll);
+
+        window.addEventListener("scroll", handleScroll, { passive: true });
+
+        return () => {
+            window.removeEventListener("scroll", handleScroll);
+            if (rafId) cancelAnimationFrame(rafId);
+        };
     }, []);
 
     return (
@@ -37,8 +60,6 @@ export default function CTAButtons() {
                 width: "100%",
                 maxWidth: 1100,
                 margin: "0 auto",
-
-                /* keep left/right gutters at all widths */
                 paddingInline: "clamp(16px, 5vw, 48px)",
                 boxSizing: "border-box",
 
@@ -47,8 +68,14 @@ export default function CTAButtons() {
                 alignItems: "center",
 
                 opacity: visible ? 1 : 0,
-                transform: visible ? "translateY(0px)" : "translateY(40px)",
-                transition: "all 0.9s cubic-bezier(.16,1,.3,1)",
+                transform: visible
+                    ? "translate3d(0,0,0)"
+                    : "translate3d(0,40px,0)",
+
+                transition:
+                    "opacity 0.8s ease, transform 0.8s cubic-bezier(.16,1,.3,1)",
+
+                willChange: "transform, opacity",
             }}
         >
             {/* TEXT */}
@@ -66,9 +93,6 @@ export default function CTAButtons() {
                         lineHeight: 1.2,
                         color: "#e2e8f0",
                         letterSpacing: "-0.02em",
-                        whiteSpace: "normal",
-                        overflowWrap: "anywhere",
-                        wordBreak: "break-word",
                     }}
                 >
                     Faster and more <span className="gradient-text">secure</span>
@@ -84,13 +108,11 @@ export default function CTAButtons() {
                         maxWidth: 560,
                         margin: "0 auto",
                         lineHeight: 1.6,
-                        whiteSpace: "normal",
-                        overflowWrap: "anywhere",
-                        wordBreak: "break-word",
                     }}
                 >
-                    Codeflow runs your full development environment directly in the
-                    browser using isolated containers. No installs, no setup — just instant coding.
+                    Codeflow runs your full development environment directly in
+                    the browser using isolated containers. No installs, no
+                    setup — just instant coding.
                 </Text>
             </Box>
 
@@ -100,16 +122,15 @@ export default function CTAButtons() {
                     width: "100%",
                     maxWidth: 900,
                     margin: "0 auto",
-
-                    /* consistent inner gutters */
                     paddingInline: 16,
                     boxSizing: "border-box",
 
                     display: "grid",
-                    gridTemplateColumns: isBelow720 ? "1fr" : `repeat(${columns}, minmax(0, 1fr))`,
+                    gridTemplateColumns: isBelow720
+                        ? "1fr"
+                        : `repeat(${columns}, minmax(0, 1fr))`,
                     gap: isBelow720 ? 16 : 24,
 
-                    /* ensure children stretch and can shrink */
                     alignItems: "stretch",
                 }}
             >
@@ -133,18 +154,22 @@ export default function CTAButtons() {
     );
 }
 
-/* CARD */
+/* ================= CARD ================= */
+
 function GlassCard({ icon, title, desc, button, gradient }) {
+    const isMobile = useMediaQuery("(max-width: 720px)");
+
     return (
         <Box
             style={{
                 width: "100%",
-                minWidth: 0, // critical for shrinking inside grid
+                minWidth: 0,
                 padding: "clamp(16px, 4vw, 22px)",
                 borderRadius: 18,
 
                 background: "rgba(15, 23, 42, 0.55)",
-                backdropFilter: "blur(18px)",
+                backdropFilter: isMobile ? "blur(8px)" : "blur(14px)",
+
                 border: "1px solid rgba(255,255,255,0.08)",
 
                 boxShadow: `
@@ -157,17 +182,18 @@ function GlassCard({ icon, title, desc, button, gradient }) {
                 justifyContent: "space-between",
 
                 minHeight: 200,
-
-                /* allow the card to shrink when container narrows */
                 flexShrink: 1,
                 overflow: "hidden",
+
+                transform: "translateZ(0)",
+                willChange: "transform",
+                backfaceVisibility: "hidden",
             }}
         >
             <Box
                 style={{
                     width: 44,
                     height: 44,
-                    minWidth: 44,
                     borderRadius: "50%",
                     display: "flex",
                     alignItems: "center",
@@ -176,7 +202,6 @@ function GlassCard({ icon, title, desc, button, gradient }) {
                     border: "1px solid rgba(255,255,255,0.12)",
                     color: "#fff",
                     marginBottom: 14,
-                    flexShrink: 0, // icon shouldn't shrink into text
                 }}
             >
                 {icon}
@@ -187,9 +212,6 @@ function GlassCard({ icon, title, desc, button, gradient }) {
                     color: "#e2e8f0",
                     fontSize: 18,
                     fontWeight: 600,
-                    whiteSpace: "normal",
-                    overflowWrap: "anywhere",
-                    wordBreak: "break-word",
                 }}
             >
                 {title}
@@ -201,9 +223,6 @@ function GlassCard({ icon, title, desc, button, gradient }) {
                     fontSize: 13,
                     marginTop: 6,
                     marginBottom: 18,
-                    whiteSpace: "normal",
-                    overflowWrap: "anywhere",
-                    wordBreak: "break-word",
                 }}
             >
                 {desc}

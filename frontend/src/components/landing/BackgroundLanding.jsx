@@ -91,8 +91,9 @@ export default function BackgroundLanding() {
                     size={outerSize}
                     speed="90s"
                     headings={[
-                        { text: "JAVASCRIPT", angle: 20 },
-                        { text: "ECOSYSTEM", angle: 200 },
+                        { text: "FAST", angle: 60, color: "#73d9b4" },
+                        { text: "SECRE", angle: 150, color: "#ea0dea" },
+
                     ]}
                     glow="rgba(59,130,246,0.15)"
                     color="#60a5fa"
@@ -103,8 +104,9 @@ export default function BackgroundLanding() {
                     speed="60s"
                     reverse
                     headings={[
-                        { text: "ZERO SETUP", angle: 120 },
-                        { text: "INSTANT", angle: 300 },
+                        { text: "ZERO SETUP", angle: 60, color: "#1093b8" },
+                        { text: "INSTANT", angle: 150, color: "#a78bfa" },
+                       
                     ]}
                     glow="rgba(52,211,153,0.15)"
                     color="#34d399"
@@ -223,7 +225,7 @@ function NeuralBackground() {
 
 /* ================= RING ================= */
 
-function Ring({ size, speed, reverse, glow, headings, color }) {
+function Ring({ size, speed, reverse, glow, headings = [], color }) {
     return (
         <Box
             style={{
@@ -241,29 +243,62 @@ function Ring({ size, speed, reverse, glow, headings, color }) {
                     border: "1px solid rgba(255,255,255,0.08)",
                     boxShadow: `0 0 30px ${glow}`,
                     position: "relative",
-                    animation: `rotateOrbit ${speed} linear infinite ${reverse ? "reverse" : ""}`,
+                    animation: `rotateOrbit ${speed} linear infinite ${reverse ? "reverse" : ""
+                        }`,
                 }}
             >
-                {headings.map((h, i) => (
-                    <Box key={i} style={{ position: "absolute", inset: 0, transform: `rotate(${h.angle}deg)` }}>
+                {headings.map((h, i) => {
+                    const c = h.color || color;
+
+                    return (
                         <Box
+                            key={i}
                             style={{
                                 position: "absolute",
-                                top: -12,
-                                left: "50%",
-                                transform: "translateX(-50%)",
-                                color,
-                                fontSize: 12,
-                                letterSpacing: 1,
-                                whiteSpace: "nowrap",
-                                textShadow: `0 0 8px ${color}`,
-                                opacity: 0.9,
+                                inset: 0,
+                                transform: `rotate(${h.angle}deg)`,
                             }}
                         >
-                            {h.text}
+                            <Box
+                                style={{
+                                    position: "absolute",
+                                    top: -18,
+                                    left: "50%",
+                                    transform: "translateX(-50%)",
+                                    whiteSpace: "nowrap",
+                                }}
+                            >
+                                <Box
+                                    style={{
+                                        padding: "2px 14px",
+                                        borderRadius: 10,
+                                        fontSize: 11,
+                                        letterSpacing: 0.6,
+                                        fontWeight: 600,
+                                        color: "#e2e8f0",
+
+                                        background: `linear-gradient(135deg, ${c}40, ${c}15)`,
+
+                                        border: `1px solid ${c}55`,
+
+                                        backdropFilter: "blur(10px)",
+
+                                        boxShadow: `
+                      0 0 12px ${c}40,
+                      inset 0 0 12px ${c}20
+                    `,
+
+                                        textShadow: `0 0 6px ${c}`,
+
+                                        animation: "badgePulse 4s ease-in-out infinite",
+                                    }}
+                                >
+                                    {h.text}
+                                </Box>
+                            </Box>
                         </Box>
-                    </Box>
-                ))}
+                    );
+                })}
             </Box>
         </Box>
     );

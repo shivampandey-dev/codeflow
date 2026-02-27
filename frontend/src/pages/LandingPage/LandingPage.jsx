@@ -5,6 +5,7 @@ import SectionNeuralBackground from "../../components/common/SectionNeuralBackgr
 import "../../components/Style/AllLandingStyle.css";
 import IDEComparisonSection from "../../components/landing/IDEComparisonSection";
 import SectionHero from "../../components/common/SectionHero";
+import ProcessFlow from "../../components/common/ProcessFlow";
 
 
 export default function LandingPage() {
@@ -57,6 +58,7 @@ export default function LandingPage() {
                     <CTAButtons />
                     <SectionHero title="Why Codeflow" />
                     <IDEComparisonSection />
+                    <ProcessFlow isLoader={false} />
                 </Box>
             </Box>
         </Box>

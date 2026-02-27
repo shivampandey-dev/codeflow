@@ -9,38 +9,52 @@ export default function IDEComparisonSection() {
 
     const [visible, setVisible] = useState(false);
 
-    /* ⭐ ONLY BREAKPOINT */
     const isBelow1020 = useMediaQuery("(max-width: 1020px)");
 
-    /* reveal */
+    /* ================= REVEAL ================= */
     useEffect(() => {
         const observer = new IntersectionObserver(
-            ([entry]) => setVisible(entry.isIntersecting),
+            ([entry]) => {
+                if (entry.isIntersecting) setVisible(true);
+            },
             { threshold: 0.2 }
         );
 
         if (ref.current) observer.observe(ref.current);
+
         return () => observer.disconnect();
     }, []);
 
-    /* parallax */
+    /* ================= PARALLAX (OPTIMIZED) ================= */
     useEffect(() => {
+        let rafId = null;
+
         const handleScroll = () => {
-            const rect = tableRef.current?.getBoundingClientRect();
-            if (!rect) return;
+            if (rafId) return;
 
-            const offset = rect.top * (isBelow1020 ? -0.02 : -0.08);
+            rafId = requestAnimationFrame(() => {
+                const rect = tableRef.current?.getBoundingClientRect();
+                if (!rect) return;
 
-            if (tableRef.current) {
-                tableRef.current.style.transform = `translateY(${offset}px)`;
-            }
+                const offset = rect.top * (isBelow1020 ? -0.02 : -0.08);
+
+                if (tableRef.current) {
+                    tableRef.current.style.transform = `translate3d(0, ${offset}px, 0)`;
+                }
+
+                rafId = null;
+            });
         };
 
-        window.addEventListener("scroll", handleScroll);
-        return () => window.removeEventListener("scroll", handleScroll);
+        window.addEventListener("scroll", handleScroll, { passive: true });
+
+        return () => {
+            window.removeEventListener("scroll", handleScroll);
+            if (rafId) cancelAnimationFrame(rafId);
+        };
     }, [isBelow1020]);
 
-    /* ROW */
+    /* ================= ROW ================= */
     const Row = ({ label, good, bad }) => (
         <Box
             style={{
@@ -51,14 +65,12 @@ export default function IDEComparisonSection() {
                 borderBottom: "1px solid rgba(255,255,255,0.06)",
             }}
         >
-            {/* LABEL */}
             <Text style={{ color: "#cbd5e1" }}>{label}</Text>
 
-            {/* CODEFLOW */}
             <Box
                 style={{
                     display: "flex",
-                    flexDirection: "column", // ⭐ icon top text bottom when tight
+                    flexDirection: "column",
                     alignItems: "flex-start",
                     gap: 2,
                     color: "#34d399",
@@ -69,7 +81,6 @@ export default function IDEComparisonSection() {
                 <span>{good}</span>
             </Box>
 
-            {/* LEGACY */}
             <Box
                 style={{
                     display: "flex",
@@ -93,28 +104,29 @@ export default function IDEComparisonSection() {
             style={{
                 width: "100%",
                 display: "flex",
-
-                /* ⭐ LAYOUT SWITCH */
                 flexDirection: isBelow1020 ? "column" : "row",
-
                 alignItems: "center",
                 justifyContent: "center",
-
                 gap: 60,
-                // padding: isBelow1020 ? "0 16px" : 0,
 
                 opacity: visible ? 1 : 0,
-                transform: visible ? "translateY(0px)" : "translateY(80px)",
-                transition: "all 1s cubic-bezier(.16,1,.3,1)",
+                transform: visible
+                    ? "translate3d(0,0,0)"
+                    : "translate3d(0,80px,0)",
+
+                transition:
+                    "opacity 0.8s ease, transform 0.8s cubic-bezier(.16,1,.3,1)",
+
+                willChange: "transform, opacity",
             }}
         >
+            {/* LEFT TEXT */}
             <Box
                 style={{
                     width: isBelow1020 ? "100%" : "35%",
                     maxWidth: 520,
                 }}
             >
-                {/* HEADLINE */}
                 <Text
                     style={{
                         fontSize: isBelow1020 ? 26 : 38,
@@ -139,7 +151,6 @@ export default function IDEComparisonSection() {
                     ?
                 </Text>
 
-                {/* DESCRIPTION */}
                 <Text
                     style={{
                         color: "#94a3b8",
@@ -148,12 +159,11 @@ export default function IDEComparisonSection() {
                         fontSize: isBelow1020 ? 14 : 16,
                     }}
                 >
-                    Traditional cloud IDEs run on remote servers and stream results back to
-                    your browser. This introduces latency, increases startup time, and
-                    limits the responsiveness developers expect from modern tools.
+                    Traditional cloud IDEs run on remote servers and stream
+                    results back to your browser. This introduces latency,
+                    increases startup time, and limits responsiveness.
                 </Text>
 
-                {/* HIGHLIGHT STATEMENT */}
                 <Text
                     style={{
                         color: "#e2e8f0",
@@ -166,15 +176,15 @@ export default function IDEComparisonSection() {
                     <span
                         style={{
                             color: "#38bdf8",
-                            textShadow: "0 0 12px rgba(56,189,248,0.6)",
+                            textShadow:
+                                "0 0 12px rgba(56,189,248,0.6)",
                             fontWeight: 700,
                         }}
                     >
                         Codeflow
                     </span>
                     , computation happens directly in your browser —
-                    delivering instant startup, offline capability,
-                    and zero network delay.
+                    delivering instant startup and zero network delay.
                 </Text>
             </Box>
 
@@ -183,22 +193,41 @@ export default function IDEComparisonSection() {
                 ref={tableRef}
                 style={{
                     position: "relative",
-                    width: isBelow1020 ? "100%" : "65%", // ⭐ 35 / 65 ratio
+                    width: isBelow1020 ? "100%" : "65%",
                     maxWidth: 700,
                     padding: 20,
                     borderRadius: 20,
 
-                    background:
-                        "linear-gradient(135deg, rgba(15,23,42,0.85), rgba(2,6,23,0.95))",
+                    background: `
+    linear-gradient(135deg,
+        rgba(8, 20, 40, 0.85) 0%,
+        rgba(6, 18, 38, 0.92) 40%,
+        rgba(2, 8, 20, 0.96) 100%
+    ),
+    radial-gradient(
+        circle at 20% 0%,
+        rgba(56,189,248,0.18),
+        transparent 55%
+    ),
+    radial-gradient(
+        circle at 80% 30%,
+        rgba(34,197,94,0.12),
+        transparent 60%
+    )
+`,
 
-                    backdropFilter: "blur(20px)",
+                    backdropFilter: isBelow1020
+                        ? "blur(8px)"
+                        : "blur(14px)",
+
                     border: "1px solid rgba(255,255,255,0.08)",
                     boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
 
                     overflow: "hidden",
 
-                    transform: "translateY(0px)",
-                    transition: "transform 0.2s linear",
+                    transform: "translateZ(0)",
+                    willChange: "transform",
+                    backfaceVisibility: "hidden",
                 }}
             >
                 {/* GLOW */}
@@ -213,13 +242,12 @@ export default function IDEComparisonSection() {
                 />
 
                 {/* DIVIDER */}
-
                 <Box
                     style={{
                         position: "absolute",
                         top: 0,
                         bottom: 0,
-                        left: "61%",   // ⭐ correct alignment for 1.2fr 1fr 1fr
+                        left: "61%",
                         width: 1,
                         background:
                             "linear-gradient(to bottom, transparent, rgba(56,189,248,0.7), transparent)",
@@ -229,7 +257,6 @@ export default function IDEComparisonSection() {
                     }}
                 />
 
-
                 {/* CONTENT */}
                 <Box style={{ position: "relative", zIndex: 1 }}>
                     {/* HEADER */}
@@ -238,14 +265,13 @@ export default function IDEComparisonSection() {
                             display: "grid",
                             gridTemplateColumns: "1.2fr 1fr 1fr",
                             alignItems: "center",
-
-                            marginBottom: 6,        // ⭐ reduced gap
-                            paddingBottom: 8,       // ⭐ closer to rows
-                            borderBottom: "1px solid rgba(255,255,255,0.06)",
-
+                            marginBottom: 6,
+                            paddingBottom: 8,
+                            borderBottom:
+                                "1px solid rgba(255,255,255,0.06)",
                             color: "#94a3b8",
                             fontWeight: 600,
-                            fontSize: isBelow1020 ? 13 : 14,   // ⭐ smaller text
+                            fontSize: isBelow1020 ? 13 : 14,
                         }}
                     >
                         <div />
@@ -255,9 +281,6 @@ export default function IDEComparisonSection() {
                                 color: "#38bdf8",
                                 fontWeight: 600,
                                 letterSpacing: 0.2,
-                                fontSize: isBelow1020 ? 13 : 14,
-                                marginTop: isBelow1020 ? "32px" : 1,
-                                marginRight: isBelow1020 ? "32px" : 1,
                             }}
                         >
                             Codeflow
@@ -268,10 +291,7 @@ export default function IDEComparisonSection() {
                                 color: "#94a3b8",
                                 fontWeight: 600,
                                 letterSpacing: 0.2,
-                                fontSize: isBelow1020 ? 12 : 14,
-                                marginTop: isBelow1020 ? 32 : 1,
-                                marginRight: isBelow1020 ? 14 : 1,
-                                whiteSpace: "nowrap",   // ⭐ prevents line break
+                                whiteSpace: "nowrap",
                             }}
                         >
                             Legacy IDEs
