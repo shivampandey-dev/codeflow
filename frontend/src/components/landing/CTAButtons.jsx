@@ -159,38 +159,53 @@ export default function CTAButtons() {
 
 function GlassCard({ icon, title, desc, button, gradient }) {
     const isMobile = useMediaQuery("(max-width: 720px)");
+    const [hovered, setHovered] = useState(false);
 
     return (
         <Box
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
             style={{
                 width: "100%",
                 minWidth: 0,
                 padding: "clamp(16px, 4vw, 22px)",
                 borderRadius: 18,
-
+                cursor: "pointer",
                 background: "rgba(15, 23, 42, 0.55)",
                 backdropFilter: isMobile ? "blur(8px)" : "blur(14px)",
 
-                border: "1px solid rgba(255,255,255,0.08)",
+                border: hovered
+                    ? "1px solid rgba(99,102,241,0.6)"
+                    : "1px solid rgba(255,255,255,0.08)",
 
-                boxShadow: `
-          0 0 40px rgba(59,130,246,0.12),
-          0 20px 60px rgba(0,0,0,0.6)
-        `,
+                boxShadow: hovered
+                    ? `
+                        0 0 60px rgba(99,102,241,0.35),
+                        0 25px 80px rgba(0,0,0,0.7)
+                      `
+                    : `
+                        0 0 40px rgba(59,130,246,0.12),
+                        0 20px 60px rgba(0,0,0,0.6)
+                      `,
 
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
 
                 minHeight: 200,
-                flexShrink: 1,
                 overflow: "hidden",
 
-                transform: "translateZ(0)",
-                willChange: "transform",
-                backfaceVisibility: "hidden",
+                transform: hovered
+                    ? "translateY(-6px) scale(1.02)"
+                    : "translateY(0px) scale(1)",
+
+                transition:
+                    "all 0.35s cubic-bezier(.16,1,.3,1)",
+
+                position: "relative",
             }}
         >
+            {/* ICON */}
             <Box
                 style={{
                     width: 44,
@@ -203,6 +218,9 @@ function GlassCard({ icon, title, desc, button, gradient }) {
                     border: "1px solid rgba(255,255,255,0.12)",
                     color: "#fff",
                     marginBottom: 14,
+
+                    transform: hovered ? "scale(1.15)" : "scale(1)",
+                    transition: "transform 0.3s ease",
                 }}
             >
                 {icon}
@@ -229,6 +247,7 @@ function GlassCard({ icon, title, desc, button, gradient }) {
                 {desc}
             </Text>
 
+            {/* BUTTON */}
             <Box
                 style={{
                     minHeight: 42,
@@ -240,8 +259,25 @@ function GlassCard({ icon, title, desc, button, gradient }) {
                     color: "#fff",
                     fontWeight: 600,
                     fontSize: 14,
+                    position: "relative",
+                    overflow: "hidden",
                 }}
             >
+                {/* Shine effect */}
+                <Box
+                    style={{
+                        position: "absolute",
+                        top: 0,
+                        left: hovered ? "120%" : "-120%",
+                        width: "60%",
+                        height: "100%",
+                        background:
+                            "linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)",
+                        transform: "skewX(-20deg)",
+                        transition: "left 0.6s ease",
+                    }}
+                />
+
                 {button}
             </Box>
         </Box>
