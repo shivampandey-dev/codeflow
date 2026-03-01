@@ -6,6 +6,7 @@ import "../../components/Style/AllLandingStyle.css";
 import IDEComparisonSection from "../../components/landing/IDEComparisonSection";
 import SectionHero from "../../components/common/SectionHero";
 import ProcessFlow from "../../components/common/ProcessFlow";
+import CodeTransformSection from "../../components/landing/CodeTransformSection";
 
 
 export default function LandingPage() {
@@ -55,10 +56,12 @@ export default function LandingPage() {
 
                 {/* CONTENT (stacked above background) */}
                 <Box style={{ position: "relative", zIndex: 2, width: "100%" }}>
-                    <CTAButtons />
+              
                     <SectionHero title="Why Codeflow" />
                     <IDEComparisonSection />
                     <ProcessFlow isLoader={false} />
+                    <CodeTransformSection />
+                    <CTAButtons />
                 </Box>
             </Box>
         </Box>

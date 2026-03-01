@@ -105,31 +105,41 @@ export default function ProcessFlow({ isLoader = false }) {
         <Box
             style={{
                 width: "100%",
-                padding: isLoader ? 0 : "120px 0",
+                padding: isLoader ? 0 : "50px 0",
                 display: "flex",
                 justifyContent: "center",
-                marginBottom: 120,
+                // marginBottom: 120,
             }}
         >
             <Box style={{ width: "100%", maxWidth: 1100, position: "relative" }}>
-                {/* TITLE */}
-                {!isLoader && (
-                    <Text
-                        style={{
-                            textAlign: "center",
-                            fontSize: isMobile ? 28 : 40,
-                            fontWeight: 800,
-                            marginBottom: 70,
-                            background:
-                                "linear-gradient(90deg,#38bdf8,#22c55e,#a855f7)",
-                            WebkitBackgroundClip: "text",
-                            color: "transparent",
-                        }}
-                    >
-                        From Idea to Output in Seconds
-                    </Text>
-                )}
+                {/* TITLE */}{!isLoader && (
+                    <Box>
+                        <Text
+                            style={{
+                                textAlign: "center",
+                                fontSize: isMobile ? 28 : 40,
+                                fontWeight: 800,
+                                marginBottom: 40,
+                                background:
+                                    "linear-gradient(90deg,#38bdf8,#22c55e,#a855f7)",
+                                WebkitBackgroundClip: "text",
+                                color: "transparent",
+                            }}
+                        >
+                            From Idea to Output in Seconds
+                        </Text>
 
+                        <Box
+                            style={{
+                                height: 1,
+                                background:
+                                    "linear-gradient(90deg, transparent, #38bdf8, transparent)",
+                                opacity: 0.3,
+                                margin: "40px 0 60px 0",
+                            }}
+                        />
+                    </Box>
+                )}
                 {/* ================= MOBILE ================= */}
                 {isMobile ? (
                     <Box
@@ -368,7 +378,7 @@ export default function ProcessFlow({ isLoader = false }) {
                             </Box>
                         </Box>
 
-                  
+
                     </Box>
                 )}
                 {!isLoader && (

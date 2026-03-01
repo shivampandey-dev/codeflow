@@ -76,6 +76,7 @@ export default function CTAButtons() {
                     "opacity 0.8s ease, transform 0.8s cubic-bezier(.16,1,.3,1)",
 
                 willChange: "transform, opacity",
+                marginBottom: isBelow450 ? 10 : 20,
             }}
         >
             {/* TEXT */}

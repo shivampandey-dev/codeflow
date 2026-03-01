@@ -144,7 +144,7 @@ export default function BackgroundLanding() {
                             src={image}
                             alt="Codeflow"
                             style={{
-                                height: isMobile ? 94 : 156,
+                                height: isMobile ? 174 : 256,
                                 width: "auto",
                                 filter: "drop-shadow(0 0 18px rgba(99,102,241,0.45))",
                                 animation: "logoPulse 4s ease-in-out infinite",

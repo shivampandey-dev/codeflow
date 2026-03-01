@@ -24,7 +24,7 @@ export default function SectionHero({ title = "Why Codeflow" }) {
             style={{
                 position: "relative",
                 width: "100%",
-                padding: isBelow1020 ? "80px 20px 40px" : "120px 20px 60px",
+                padding: isBelow1020 ? "80px 20px 40px" : "20px 20px 60px",
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
@@ -36,10 +36,6 @@ export default function SectionHero({ title = "Why Codeflow" }) {
                 style={{
                     position: "absolute",
                     inset: 0,
-                    background: `
-                        radial-gradient(circle at 30% 40%, rgba(56,189,248,0.15), transparent 40%),
-                        radial-gradient(circle at 70% 60%, rgba(34,197,94,0.12), transparent 40%)
-                    `,
                     filter: "blur(70px)",
                     pointerEvents: "none",
                 }}
