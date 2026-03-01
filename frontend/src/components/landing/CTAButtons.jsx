@@ -3,12 +3,16 @@ import { IconBolt, IconUpload } from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
 import { useMediaQuery } from "@mantine/hooks";
 import { motion } from "framer-motion";
+
 import CreateProjectModal from "../project/CreateProjectModal/CreateProjectModal";
+import UploadProjectModal from "../project/UploadProjectModal/UploadProjectModal";
 
 export default function CTAButtons() {
     const ref = useRef(null);
     const [visible, setVisible] = useState(false);
-    const [openModal, setOpenModal] = useState(false);
+
+    const [openCreate, setOpenCreate] = useState(false);
+    const [openUpload, setOpenUpload] = useState(false);
 
     const isBelow720 = useMediaQuery("(max-width: 720px)");
     const isBelow450 = useMediaQuery("(max-width: 450px)");
@@ -98,10 +102,10 @@ export default function CTAButtons() {
                         gap: isBelow720 ? 16 : 24,
                     }}
                 >
-                    {/* MORPH CARD */}
+                    {/* CREATE PROJECT CARD */}
                     <motion.div
                         layoutId="create-project-card"
-                        onClick={() => setOpenModal(true)}
+                        onClick={() => setOpenCreate(true)}
                     >
                         <GlassCard
                             icon={<IconBolt size={22} />}
@@ -112,22 +116,34 @@ export default function CTAButtons() {
                         />
                     </motion.div>
 
-                    <GlassCard
-                        icon={<IconUpload size={22} />}
-                        title="Upload Your Project"
-                        desc="Open any local folder or ZIP archive."
-                        button="Upload Folder"
-                        gradient="linear-gradient(135deg,#6366f1,#8b5cf6)"
-                        onClick={() => console.log("Upload clicked")}
-                    />
+                    {/* UPLOAD PROJECT CARD */}
+                    <motion.div
+                        layoutId="upload-project-card"
+                        onClick={() => setOpenUpload(true)}
+                    >
+                        <GlassCard
+                            icon={<IconUpload size={22} />}
+                            title="Upload Your Project"
+                            desc="Open any local folder or ZIP archive."
+                            button="Upload Folder"
+                            gradient="linear-gradient(135deg,#6366f1,#8b5cf6)"
+                        />
+                    </motion.div>
                 </Box>
             </Box>
 
-            {/* MODAL */}
+            {/* CREATE MODAL */}
             <CreateProjectModal
-                opened={openModal}
-                onClose={() => setOpenModal(false)}
+                opened={openCreate}
+                onClose={() => setOpenCreate(false)}
                 layoutId="create-project-card"
+            />
+
+            {/* UPLOAD MODAL */}
+            <UploadProjectModal
+                opened={openUpload}
+                onClose={() => setOpenUpload(false)}
+                layoutId="upload-project-card"
             />
         </>
     );
@@ -141,14 +157,12 @@ function GlassCard({
     desc,
     button,
     gradient,
-    onClick,
 }) {
     const isMobile = useMediaQuery("(max-width: 720px)");
     const [hovered, setHovered] = useState(false);
 
     return (
         <Box
-            onClick={onClick}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
             style={{
