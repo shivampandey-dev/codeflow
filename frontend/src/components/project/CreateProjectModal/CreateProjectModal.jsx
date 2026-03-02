@@ -12,6 +12,20 @@ export default function CreateProjectModal({
     onClose,
     layoutId = "create-project-card",
 }) {
+    /* ================= TEMPLATE SELECT ================= */
+
+    const handleTemplateSelect = (tpl) => {
+        // Build absolute URL
+        const url = `${window.location.origin}/workspace/${tpl.id}`;
+
+        // Open workspace in new tab
+        const newTab = window.open(url, "_blank");
+        newTab?.focus();
+
+        // Close modal
+        onClose?.();
+    };
+
     return (
         <AnimatePresence>
             {opened && (
@@ -90,7 +104,9 @@ export default function CreateProjectModal({
                         </Box>
 
                         {/* Templates */}
-                        <TemplateGrid />
+                        <TemplateGrid
+                            onSelect={handleTemplateSelect}
+                        />
                     </motion.div>
                 </motion.div>
             )}

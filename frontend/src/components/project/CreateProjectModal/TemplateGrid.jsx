@@ -25,6 +25,12 @@ export default function TemplateGrid({ onSelect }) {
         return () => clearTimeout(t);
     }, []);
 
+    /* ================= RESET INDEX ON TAB CHANGE ================= */
+
+    useEffect(() => {
+        setSelectedIndex(0);
+    }, [activeTab]);
+
     /* ================= ACTIVE CATEGORY ================= */
 
     const activeCategory = templateCategories.find(
@@ -35,9 +41,7 @@ export default function TemplateGrid({ onSelect }) {
 
     const filtered = useMemo(() => {
         return templates.filter((tpl) =>
-            tpl.label
-                .toLowerCase()
-                .includes(search.toLowerCase())
+            tpl.label.toLowerCase().includes(search.toLowerCase())
         );
     }, [templates, search]);
 
@@ -47,33 +51,30 @@ export default function TemplateGrid({ onSelect }) {
         const handler = (e) => {
             if (!filtered.length) return;
 
-            if (e.key === "ArrowRight")
-                setSelectedIndex(
-                    (i) => (i + 1) % filtered.length
-                );
+            if (e.key === "ArrowRight") {
+                setSelectedIndex((i) => (i + 1) % filtered.length);
+            }
 
-            if (e.key === "ArrowLeft")
+            if (e.key === "ArrowLeft") {
                 setSelectedIndex(
-                    (i) =>
-                        (i - 1 + filtered.length) %
-                        filtered.length
+                    (i) => (i - 1 + filtered.length) % filtered.length
                 );
+            }
 
-            if (e.key === "Enter")
-                handleSelect(filtered[selectedIndex]);
+            if (e.key === "Enter") {
+                handleSelect(filtered[selectedIndex], selectedIndex);
+            }
         };
 
         window.addEventListener("keydown", handler);
-        return () =>
-            window.removeEventListener(
-                "keydown",
-                handler
-            );
+        return () => window.removeEventListener("keydown", handler);
     }, [filtered, selectedIndex]);
 
     /* ================= SELECT ================= */
 
-    const handleSelect = (tpl) => {
+    const handleSelect = (tpl, index) => {
+        setSelectedIndex(index); // ⭐ FIX HIGHLIGHT
+
         onSelect?.(tpl);
 
         setRecent((prev) => {
@@ -101,26 +102,21 @@ export default function TemplateGrid({ onSelect }) {
                 {templateCategories.map((cat) => (
                     <Box
                         key={cat.id}
-                        onClick={() =>
-                            setActiveTab(cat.id)
-                        }
+                        onClick={() => setActiveTab(cat.id)}
                         style={{
                             padding: "8px 14px",
                             borderRadius: 10,
                             cursor: "pointer",
                             fontSize: 13,
                             fontWeight: 600,
-
                             background:
                                 activeTab === cat.id
                                     ? "rgba(99,102,241,0.2)"
                                     : "rgba(255,255,255,0.04)",
-
                             border:
                                 activeTab === cat.id
                                     ? "1px solid rgba(99,102,241,0.5)"
                                     : "1px solid rgba(255,255,255,0.08)",
-
                             color:
                                 activeTab === cat.id
                                     ? "#e2e8f0"
@@ -135,9 +131,7 @@ export default function TemplateGrid({ onSelect }) {
             {/* SEARCH */}
             <TextInput
                 value={search}
-                onChange={(e) =>
-                    setSearch(e.target.value)
-                }
+                onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search templates..."
                 leftSection={<Search size={16} />}
                 mb={20}
@@ -146,11 +140,7 @@ export default function TemplateGrid({ onSelect }) {
             {/* RECENT */}
             {recent.length > 0 && (
                 <Box mb={20}>
-                    <Text
-                        size="sm"
-                        mb={6}
-                        c="#94a3b8"
-                    >
+                    <Text size="sm" mb={6} c="#94a3b8">
                         Recently Used
                     </Text>
 
@@ -165,11 +155,12 @@ export default function TemplateGrid({ onSelect }) {
                             <Badge
                                 key={tpl.id}
                                 variant="light"
-                                style={{
-                                    cursor: "pointer",
-                                }}
+                                style={{ cursor: "pointer" }}
                                 onClick={() =>
-                                    handleSelect(tpl)
+                                    handleSelect(
+                                        tpl,
+                                        filtered.findIndex((f) => f.id === tpl.id)
+                                    )
                                 }
                             >
                                 {tpl.label}
@@ -189,26 +180,17 @@ export default function TemplateGrid({ onSelect }) {
                 }}
             >
                 {loading
-                    ? Array.from({ length: 6 }).map(
-                        (_, i) => (
-                            <Skeleton
-                                key={i}
-                                height={110}
-                                radius={14}
-                            />
-                        )
-                    )
+                    ? Array.from({ length: 6 }).map((_, i) => (
+                        <Skeleton key={i} height={110} radius={14} />
+                    ))
                     : filtered.map((tpl, index) => {
                         const Icon = tpl.icon;
-                        const active =
-                            index === selectedIndex;
+                        const active = index === selectedIndex;
 
                         return (
                             <Tooltip
                                 key={tpl.id}
-                                label={
-                                    tpl.description
-                                }
+                                label={tpl.description}
                                 withArrow
                             >
                                 <motion.div
@@ -219,43 +201,30 @@ export default function TemplateGrid({ onSelect }) {
                                 >
                                     <Box
                                         onClick={() =>
-                                            handleSelect(
-                                                tpl
-                                            )
+                                            handleSelect(tpl, index)
                                         }
+                                        onMouseEnter={() =>
+                                            setSelectedIndex(index)
+                                        } // ⭐ optional smooth hover
                                         style={{
-                                            padding:
-                                                "18px 16px",
+                                            padding: "18px 16px",
                                             borderRadius: 14,
-                                            cursor:
-                                                "pointer",
-
-                                            background:
-                                                active
-                                                    ? "rgba(99,102,241,0.18)"
-                                                    : "rgba(15,23,42,0.55)",
-
-                                            border:
-                                                active
-                                                    ? "1px solid rgba(99,102,241,0.6)"
-                                                    : "1px solid rgba(255,255,255,0.08)",
-
-                                            backdropFilter:
-                                                "blur(14px)",
-
-                                            display:
-                                                "flex",
-                                            flexDirection:
-                                                "column",
-                                            alignItems:
-                                                "center",
-                                            justifyContent:
-                                                "center",
+                                            cursor: "pointer",
+                                            background: active
+                                                ? "rgba(99,102,241,0.18)"
+                                                : "rgba(15,23,42,0.55)",
+                                            border: active
+                                                ? "1px solid rgba(99,102,241,0.6)"
+                                                : "1px solid rgba(255,255,255,0.08)",
+                                            backdropFilter: "blur(14px)",
+                                            display: "flex",
+                                            flexDirection: "column",
+                                            alignItems: "center",
+                                            justifyContent: "center",
                                             gap: 10,
-                                            textAlign:
-                                                "center",
-                                            position:
-                                                "relative",
+                                            textAlign: "center",
+                                            position: "relative",
+                                            transition: "all 0.2s ease",
                                         }}
                                     >
                                         {/* Recommended */}
@@ -263,8 +232,7 @@ export default function TemplateGrid({ onSelect }) {
                                             <Badge
                                                 size="xs"
                                                 style={{
-                                                    position:
-                                                        "absolute",
+                                                    position: "absolute",
                                                     top: 8,
                                                     right: 8,
                                                 }}
@@ -273,21 +241,10 @@ export default function TemplateGrid({ onSelect }) {
                                             </Badge>
                                         )}
 
-                                        <Icon
-                                            size={28}
-                                            color={
-                                                tpl.color
-                                            }
-                                        />
+                                        <Icon size={28} color={tpl.color} />
 
-                                        <Text
-                                            size="sm"
-                                            fw={600}
-                                            c="#e2e8f0"
-                                        >
-                                            {
-                                                tpl.label
-                                            }
+                                        <Text size="sm" fw={600} c="#e2e8f0">
+                                            {tpl.label}
                                         </Text>
                                     </Box>
                                 </motion.div>

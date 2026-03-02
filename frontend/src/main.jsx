@@ -12,17 +12,19 @@ import "@fontsource/space-grotesk/600.css";
 import "@fontsource/inter/400.css";
 import "@fontsource/inter/500.css";
 import "@fontsource/inter/600.css";
-
+import { BrowserRouter } from "react-router-dom";
 createRoot(document.getElementById("root")).render(
-  <MantineProvider
-    defaultColorScheme="dark"
-    theme={{
-      fontFamily: "Inter, sans-serif",
-      headings: {
-        fontFamily: "Space Grotesk, sans-serif",
-      },
-    }}
-  >
-    <App />
-  </MantineProvider>
+  <BrowserRouter>
+    <MantineProvider
+      defaultColorScheme="dark"
+      theme={{
+        fontFamily: "Inter, sans-serif",
+        headings: {
+          fontFamily: "Space Grotesk, sans-serif",
+        },
+      }}
+    >
+      <App />
+    </MantineProvider>
+  </BrowserRouter>
 );
