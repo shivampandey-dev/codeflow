@@ -4,7 +4,7 @@ import "@mantine/core/styles.css";
 
 import App from "./App.jsx";
 import "./index.css";
-
+import "allotment/dist/style.css";
 /* Fonts */
 import "@fontsource/space-grotesk/700.css";
 import "@fontsource/space-grotesk/600.css";
