@@ -7,31 +7,30 @@ import Editor from "./Editor/Editor";
 import Preview from "./Preview/Preview";
 import Terminal from "./Terminal/Terminal";
 
-export default function WorkspaceLayout({ previewUrl }) {
+export default function WorkspaceLayout({ previewUrl, logs, process, webcontainer, projectPath }) {
     return (
         <Box
             style={{
                 height: "100vh",
+                width: "100%",
+                position: "fixed",
                 background: "#0b1220",
             }}
         >
-            <Allotment vertical>
+            <Allotment vertical style={{ height: "100%" }}>
 
-                {/* TOP AREA */}
+                {/* TOP */}
                 <Allotment.Pane preferredSize="75%">
                     <Allotment>
 
-                        {/* FILE TREE */}
                         <Allotment.Pane preferredSize={260} minSize={180}>
                             <FileTree />
                         </Allotment.Pane>
 
-                        {/* EDITOR */}
                         <Allotment.Pane>
                             <Editor />
                         </Allotment.Pane>
 
-                        {/* PREVIEW */}
                         <Allotment.Pane preferredSize={420} minSize={280}>
                             <Preview previewUrl={previewUrl} />
                         </Allotment.Pane>
@@ -41,7 +40,7 @@ export default function WorkspaceLayout({ previewUrl }) {
 
                 {/* TERMINAL */}
                 <Allotment.Pane preferredSize={220} minSize={120}>
-                    <Terminal />
+                    <Terminal logs={logs} process={process} webcontainer={webcontainer} projectPath={projectPath} />
                 </Allotment.Pane>
 
             </Allotment>
