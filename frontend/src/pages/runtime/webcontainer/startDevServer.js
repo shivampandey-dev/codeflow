@@ -63,15 +63,11 @@ export async function startDevServer(webcontainer, onOutput) {
         }
     })();
 
-    /* ---------------- INSTALL ---------------- */
-
-    /* ---------------- INSTALL + DEV ---------------- */
-
     write(`\r\n${color.cyan}📦 Installing dependencies...${color.reset}\r\n`);
     write(`${color.dim}Running npm install && npm run dev${color.reset}\r\n\n`);
 
-    /* Run sequentially inside shell */
-    await writer.write("npm install --loglevel verbose && npm run dev\n");
+
+    await writer.write(" npm install --loglevel verbose && npm run dev\n");
 
 
 
