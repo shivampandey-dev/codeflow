@@ -1,14 +1,16 @@
-
+import { SearchAddon } from "xterm-addon-search";
 import { useEffect, useRef, useState } from "react";
 import { Terminal as XTerm } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import { Allotment } from "allotment";
 import "allotment/dist/style.css";
 import "xterm/css/xterm.css";
-
+import { useMediaQuery } from "@mantine/hooks";
 import {
     SquareSplitHorizontal,
     Trash2,
+    Minimize,
+    Expand,
     Terminal as TerminalIcon
 } from "lucide-react";
 
@@ -39,8 +41,9 @@ export default function Terminal({
 
     const [activeIndex, setActiveIndex] = useState(0);
     const [renameModal, setRenameModal] = useState(null);
+    const [fullscreen, setFullscreen] = useState(false);
+    const isMobile = useMediaQuery("(max-width: 768px)");
 
-    /* ---------------- KEYBOARD SHORTCUTS ---------------- */
 
     useEffect(() => {
         const handleKeyDown = (e) => {
@@ -50,7 +53,7 @@ export default function Terminal({
                 addSplit();
             }
 
-            if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "w") {
+            if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "y") {
                 e.preventDefault();
                 deleteTerminal();
             }
@@ -137,10 +140,16 @@ export default function Terminal({
             style={{
                 height: "100%",
                 width: "100%",
-                position: "relative",
+                position: fullscreen ? "fixed" : "relative",
+                top: fullscreen ? 0 : "auto",
+                left: fullscreen ? 0 : "auto",
+                right: fullscreen ? 0 : "auto",
+                bottom: fullscreen ? 0 : "auto",
+                zIndex: fullscreen ? 9999 : "auto",
                 display: "flex",
                 flexDirection: "column",
                 background: "#020617"
+
             }}
         >
 
@@ -149,76 +158,89 @@ export default function Terminal({
             <div
                 style={{
                     display: "flex",
-                    borderBottom: "1px solid #1e293b"
+                    borderBottom: "1px solid #1e293b",
+                    minHeight: 30
                 }}
             >
 
-                {terms.map((term, i) => (
-                    <div
-                        key={term.id}
-                        title="Double click to rename terminal"
-                        onClick={() => setActiveIndex(i)}
-                        onDoubleClick={() =>
-                            setRenameModal({ ...term, index: i })
-                        }
-                        style={{
-                            padding: "4px 10px",
-                            fontSize: 12,
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 6,
-                            borderBottom:
-                                activeIndex === i
-                                    ? `2px solid ${term.color}`
-                                    : "2px solid transparent"
-                        }}
-                    >
-                        <TerminalIcon
-                            size={14}
-                            color={term.color}
-                        />
-
-                        {term.name}
-                    </div>
-                ))}
-
-            </div>
-
-            {/* -------- TOOLBAR -------- */}
-
-            <div
-                style={{
-                    position: "absolute",
-                    top: 30,
-                    right: 0,
-                    zIndex: 10,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    background: "#020617",
-                    border: "1px solid #1e293b"
-                }}
-            >
-
-                <button
-                    title="Split terminal"
-                    onClick={addSplit}
-                    style={buttonStyle}
+                {/* SCROLLABLE TAB AREA */}
+                <div
+                    style={{
+                        flex: 1,
+                        overflowX: "auto",
+                        overflowY: "hidden",
+                        display: "flex",
+                        whiteSpace: "nowrap"
+                    }}
                 >
-                    <SquareSplitHorizontal size={16} />
-                </button>
-
-                {terms.length > 1 && (
-                    <>
+                    {terms.map((term, i) => (
                         <div
+                            key={term.id}
+                            title="Double click to rename terminal"
+                            onClick={() => setActiveIndex(i)}
+                            onDoubleClick={() => setRenameModal({ ...term, index: i })}
                             style={{
-                                width: "70%",
-                                height: 1,
-                                background: "#334155"
-                            }}
-                        />
+                                minWidth: 130,        // 🔥 important
+                                maxWidth: 200,
+                                padding: "4px 10px",
+                                fontSize: 12,
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 6,
 
+                                flexShrink: 0,        // 🔥 prevents squeezing
+                                flexGrow: 0,
+                                flexBasis: "auto",
+
+                                borderBottom:
+                                    activeIndex === i
+                                        ? `2px solid ${term.color}`
+                                        : "2px solid transparent"
+                            }}
+                        >
+                            <TerminalIcon size={14} color={term.color} />
+
+                            <span
+                                style={{
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap"
+                                }}
+                            >
+                                {term.name}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+
+                {/* TOOLBAR (RIGHT SIDE) */}
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                        borderLeft: "1px solid #1e293b",
+                        paddingLeft: 6
+                    }}
+                >
+                    <button
+                        title={fullscreen ? "Exit fullscreen" : "Expand terminal"}
+                        onClick={() => setFullscreen(!fullscreen)}
+                        style={buttonStyle}
+                    >
+                        {fullscreen ? <Minimize size={16} /> : <Expand size={16} />}
+                    </button>
+
+                    <button
+                        title="Split terminal"
+                        onClick={addSplit}
+                        style={buttonStyle}
+                    >
+                        <SquareSplitHorizontal size={16} />
+                    </button>
+
+                    {terms.length > 1 && (
                         <button
                             title="Delete terminal"
                             onClick={deleteTerminal}
@@ -226,30 +248,75 @@ export default function Terminal({
                         >
                             <Trash2 size={16} />
                         </button>
-                    </>
-                )}
+                    )}
+                </div>
 
             </div>
 
+            {/* -------- TOOLBAR -------- */}
+
+       
+
             {/* -------- TERMINAL PANES -------- */}
 
-            <Allotment>
+            {/* -------- TERMINAL PANES -------- */}
 
-                {terms.map((term, idx) => (
-                    <Allotment.Pane key={term.id}>
-                        <TerminalInstance
-                            type={term.type}
-                            process={process}
-                            logs={logs}
-                            webcontainer={webcontainer}
-                            projectPath={projectPath}
-                            isActive={activeIndex === idx}
-                            onFocus={() => setActiveIndex(idx)}
-                        />
-                    </Allotment.Pane>
-                ))}
+            {isMobile ? (
 
-            </Allotment>
+                /* MOBILE STACKED TERMINALS */
+
+                <div
+                    style={{
+                        flex: 1,
+                        overflowY: "auto",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                        padding: 6
+                    }}
+                >
+                    {terms.map((term, idx) => (
+                        <div
+                            key={term.id}
+                            style={{
+                                height: "40vh",
+                                minHeight: "240px"
+                            }}
+                        >
+                            <TerminalInstance
+                                type={term.type}
+                                process={process}
+                                logs={logs}
+                                webcontainer={webcontainer}
+                                projectPath={projectPath}
+                                isActive={activeIndex === idx}
+                                onFocus={() => setActiveIndex(idx)}
+                            />
+                        </div>
+                    ))}
+                </div>
+
+            ) : (
+
+                /* DESKTOP SPLIT TERMINALS */
+
+                <Allotment key={terms.length}>
+                    {terms.map((term, idx) => (
+                        <Allotment.Pane key={term.id}>
+                            <TerminalInstance
+                                type={term.type}
+                                process={process}
+                                logs={logs}
+                                webcontainer={webcontainer}
+                                projectPath={projectPath}
+                                isActive={activeIndex === idx}
+                                onFocus={() => setActiveIndex(idx)}
+                            />
+                        </Allotment.Pane>
+                    ))}
+                </Allotment>
+
+            )}
 
             {renameModal && (
                 <RenameModal
@@ -274,12 +341,16 @@ function TerminalInstance({
     onFocus,
     isActive
 }) {
-
+    const [searchVisible, setSearchVisible] = useState(false);
+    const [searchValue, setSearchValue] = useState("");
     const containerRef = useRef(null);
     const termRef = useRef(null);
     const fitAddonRef = useRef(null);
+    const searchAddonRef = useRef(null);
     const attachedRef = useRef(false);
     const lastIndexRef = useRef(0);
+
+    const [fontSize, setFontSize] = useState(12);
 
     useEffect(() => {
 
@@ -297,8 +368,11 @@ function TerminalInstance({
         });
 
         const fitAddon = new FitAddon();
+        const searchAddon = new SearchAddon();
 
         term.loadAddon(fitAddon);
+        term.loadAddon(searchAddon);
+
         term.open(containerRef.current);
 
         fitAddon.fit();
@@ -306,6 +380,9 @@ function TerminalInstance({
 
         termRef.current = term;
         fitAddonRef.current = fitAddon;
+        searchAddonRef.current = searchAddon;
+
+        /* CLICK FOCUS */
 
         const handleClick = () => {
             term.focus();
@@ -314,8 +391,72 @@ function TerminalInstance({
 
         containerRef.current.addEventListener("mousedown", handleClick);
 
+        /* AUTO FIT ON RESIZE */
+
+        const resizeObserver = new ResizeObserver(() => {
+            fitAddon.fit();
+        });
+
+        resizeObserver.observe(containerRef.current);
+
+        /* TERMINAL SHORTCUTS */
+
+        term.attachCustomKeyEventHandler((event) => {
+
+            /* SEARCH TERMINAL */
+
+            if (event.ctrlKey && event.key.toLowerCase() === "f") {
+                event.preventDefault();
+                setSearchVisible(true);
+                setTimeout(() => {
+                    document.getElementById("terminal-search-input")?.focus();
+                }, 50);
+                return false;
+            }
+
+            /* CLEAR TERMINAL */
+
+            if (event.ctrlKey && event.key.toLowerCase() === "l") {
+
+                event.preventDefault();
+                term.clear();
+                return false;
+            }
+
+            /* FONT ZOOM IN */
+
+            if (event.ctrlKey && event.key === "=") {
+
+                event.preventDefault();
+
+                const newSize = term.options.fontSize + 1;
+                term.options.fontSize = newSize;
+
+                fitAddon.fit();
+
+                return false;
+            }
+
+            /* FONT ZOOM OUT */
+
+            if (event.ctrlKey && event.key === "-") {
+
+                event.preventDefault();
+
+                const newSize = term.options.fontSize - 1;
+                term.options.fontSize = newSize;
+
+                fitAddon.fit();
+
+                return false;
+            }
+
+            return true;
+        });
+
         return () => {
             containerRef.current?.removeEventListener("mousedown", handleClick);
+            resizeObserver.disconnect();
             term.dispose();
         };
 
@@ -349,26 +490,15 @@ function TerminalInstance({
         attachedRef.current = true;
 
         const term = termRef.current;
-        const fitAddon = fitAddonRef.current;
-
         const writer = process.input.getWriter();
 
         const disposable = term.onData((data) => {
             writer.write(data);
         });
 
-        fitAddon.fit();
-
-        const resizeObserver = new ResizeObserver(() => {
-            fitAddon.fit();
-        });
-
-        resizeObserver.observe(containerRef.current);
-
         return () => {
 
             disposable.dispose();
-            resizeObserver.disconnect();
 
             try {
                 writer.releaseLock();
@@ -420,19 +550,85 @@ function TerminalInstance({
 
     return (
         <div
-            ref={containerRef}
             style={{
                 height: "100%",
                 width: "100%",
-                border: isActive
-                    ? "2px solid #3d403e"
-                    : "1px solid #1e293b",
-                minHeight: 0
+                position: "relative"
             }}
-        />
+        >
+
+            {searchVisible && (
+                <div
+                    style={{
+                        position: "absolute",
+                        top: 6,
+                        right: 6,
+                        zIndex: 20,
+                        background: "#0f172a",
+                        border: "1px solid #334155",
+                        padding: "4px 6px",
+                        display: "flex",
+                        gap: 6,
+                        alignItems: "center",
+                        borderRadius: 4
+                    }}
+                >
+
+                    <input
+                        id="terminal-search-input"
+                        value={searchValue}
+                        onChange={(e) => {
+                            setSearchValue(e.target.value);
+                            searchAddonRef.current?.findNext(e.target.value);
+                        }}
+                        placeholder="Search"
+                        style={{
+                            background: "transparent",
+                            border: "none",
+                            outline: "none",
+                            color: "#e2e8f0",
+                            fontSize: 12
+                        }}
+                    />
+
+                    <button
+                        onClick={() =>
+                            searchAddonRef.current?.findNext(searchValue)
+                        }
+                    >
+                        ↓
+                    </button>
+
+                    <button
+                        onClick={() =>
+                            searchAddonRef.current?.findPrevious(searchValue)
+                        }
+                    >
+                        ↑
+                    </button>
+
+                    <button onClick={() => setSearchVisible(false)}>
+                        ✕
+                    </button>
+
+                </div>
+            )}
+
+            <div
+                ref={containerRef}
+                style={{
+                    height: "100%",
+                    width: "100%",
+                    border: isActive
+                        ? "2px solid #3d403e"
+                        : "1px solid #1e293b",
+                    minHeight: 0
+                }}
+            />
+
+        </div>
     );
 }
-
 /* ---------------- RENAME MODAL ---------------- */
 
 function RenameModal({ data, onSave, onClose }) {
