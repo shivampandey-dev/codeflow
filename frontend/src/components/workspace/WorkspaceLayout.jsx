@@ -17,7 +17,7 @@ export default function WorkspaceLayout({
 }) {
     const isMobile = useMediaQuery("(max-width: 768px)");
 
-    // MOBILE LAYOUT (STACKED WITH BIGGER HEIGHT)
+    /* ================= MOBILE ================= */
     if (isMobile) {
         return (
             <Box
@@ -33,42 +33,25 @@ export default function WorkspaceLayout({
                 }}
             >
                 {/* FILE TREE */}
-                <Box
-                    style={{
-                        minHeight: "200px",
-                        height: "30vh",
-                    }}
-                >
+                <Box style={{ minHeight: "200px", height: "30vh" }}>
                     <FileTree />
                 </Box>
 
                 {/* EDITOR */}
-                <Box
-                    style={{
-                        minHeight: "320px",
-                        height: "45vh",
-                    }}
-                >
+                <Box style={{ minHeight: "320px", height: "45vh" }}>
                     <Editor />
                 </Box>
 
                 {/* PREVIEW */}
-                <Box
-                    style={{
-                        minHeight: "220px",
-                        height: "35vh",
-                    }}
-                >
-                    <Preview previewUrl={previewUrl} />
+                <Box style={{ minHeight: "220px", height: "35vh" }}>
+                    <Preview
+                        previewUrl={previewUrl}
+                        logs={logs}
+                    />
                 </Box>
 
                 {/* TERMINAL */}
-                <Box
-                    style={{
-                        minHeight: "260px",
-                        height: "40vh",
-                    }}
-                >
+                <Box style={{ minHeight: "260px", height: "40vh" }}>
                     <Terminal
                         logs={logs}
                         process={process}
@@ -80,7 +63,7 @@ export default function WorkspaceLayout({
         );
     }
 
-    // DESKTOP LAYOUT
+    /* ================= DESKTOP ================= */
     return (
         <Box
             style={{
@@ -91,9 +74,11 @@ export default function WorkspaceLayout({
             }}
         >
             <Allotment vertical style={{ height: "100%" }}>
-                {/* TOP */}
+
+                {/* TOP SECTION */}
                 <Allotment.Pane preferredSize="75%">
                     <Allotment>
+
                         <Allotment.Pane preferredSize={260} minSize={180}>
                             <FileTree />
                         </Allotment.Pane>
@@ -103,8 +88,12 @@ export default function WorkspaceLayout({
                         </Allotment.Pane>
 
                         <Allotment.Pane preferredSize={320} minSize={180}>
-                            <Preview previewUrl={previewUrl} />
+                            <Preview
+                                previewUrl={previewUrl}
+                                logs={logs}
+                            />
                         </Allotment.Pane>
+
                     </Allotment>
                 </Allotment.Pane>
 
@@ -117,6 +106,7 @@ export default function WorkspaceLayout({
                         projectPath={projectPath}
                     />
                 </Allotment.Pane>
+
             </Allotment>
         </Box>
     );

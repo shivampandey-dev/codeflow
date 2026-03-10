@@ -30,6 +30,8 @@ export default function Terminal({
     projectPath
 }) {
 
+
+
     const [terms, setTerms] = useState([
         {
             id: crypto.randomUUID(),
@@ -255,7 +257,7 @@ export default function Terminal({
 
             {/* -------- TOOLBAR -------- */}
 
-       
+
 
             {/* -------- TERMINAL PANES -------- */}
 

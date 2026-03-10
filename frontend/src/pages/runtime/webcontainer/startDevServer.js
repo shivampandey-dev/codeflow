@@ -32,6 +32,7 @@ export async function startDevServer(webcontainer, onOutput) {
 
     /* ---------------- START SHELL ---------------- */
 
+    write("__STATUS__:starting_shell\n");
     write(`${color.cyan}\r\n🚀 Starting interactive shell...${color.reset}\r\n`);
 
     devProcessInstance = await webcontainer.spawn("jsh", {
@@ -57,19 +58,18 @@ export async function startDevServer(webcontainer, onOutput) {
 
                 /* Detect Vite Ready */
                 if (/Local:\s+http/i.test(text) || /ready in/i.test(text)) {
+                    write("__STATUS__:server_ready\n");
                     write(`\r\n${color.green}🟢 Server Running Successfully!${color.reset}\r\n`);
                 }
             }
         }
     })();
 
+    write("__STATUS__:installing_deps\n");
     write(`\r\n${color.cyan}📦 Installing dependencies...${color.reset}\r\n`);
     write(`${color.dim}Running npm install && npm run dev${color.reset}\r\n\n`);
 
-
     await writer.write(" npm install --loglevel verbose && npm run dev\n");
-
-
 
     writer.releaseLock();
     installing = false;

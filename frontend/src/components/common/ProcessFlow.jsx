@@ -322,7 +322,10 @@ export default function ProcessFlow({ isLoader = false }) {
                                 </defs>
                             </svg>
 
-                            <Box style={{ position: "relative", zIndex: 3 }}>
+                            <Box
+                                className={isLoader ? "loader-rotate" : ""}
+                                style={{ position: "relative", zIndex: 3 }}
+                            >
                                 {points.map((pos, i) => {
                                     const s = steps[i];
                                     const Icon = s.icon;
@@ -359,7 +362,13 @@ export default function ProcessFlow({ isLoader = false }) {
                                                         : "none",
                                                 }}
                                             >
-                                                <Icon size={30} />
+                                                <Box
+                                                    style={{
+                                                        transform: isLoader ? `rotate(${active * -72}deg)` : "none",
+                                                    }}
+                                                >
+                                                    <Icon size={30} />
+                                                </Box>
                                             </Box>
 
                                             <Text
