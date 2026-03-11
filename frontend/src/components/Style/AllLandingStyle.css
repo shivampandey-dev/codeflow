@@ -577,3 +577,37 @@
 .xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
     background: #475569;
 }
+
+.tree-row:hover {
+    background: #1e293b;
+}
+
+/* VS Code style tree indent lines */
+
+.tree-indent {
+    position: relative;
+}
+
+.tree-indent::before {
+    content: "";
+    position: absolute;
+    left: 8px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: #1e293b;
+}
+
+/* Tree children container */
+
+.tree-children{
+  margin-left:12px;
+  border-left:1px solid #1e293b;
+  padding-left:6px;
+}
+
+/* hover highlight */
+
+.tree-row:hover{
+  background:#1e293b;
+}

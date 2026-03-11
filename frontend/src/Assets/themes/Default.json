@@ -1,0 +1,83 @@
+{
+  "base": "vs-dark",
+  "inherit": true,
+  "rules": [
+    {
+      "background": "09090b",
+      "token": ""
+    },
+    {
+      "foreground": "6a9955",
+      "background": "09090b",
+      "fontStyle": "italic",
+      "token": "comment.block"
+    },
+    {
+      "foreground": "ce9178",
+      "token": "string"
+    },
+    {
+      "foreground": "569cd6",
+      "token": "constant.language"
+    },
+    {
+      "foreground": "b5cea8",
+      "token": "constant.numeric"
+    },
+    {
+      "foreground": "dcdcaa",
+      "token": "keyword"
+    },
+    {
+      "foreground": "9cdcfe",
+      "token": "keyword.operator"
+    },
+    {
+      "foreground": "d7ba7d",
+      "token": "keyword.other.directive"
+    },
+    {
+      "foreground": "4ec9b0",
+      "token": "keyword.control"
+    },
+    {
+      "foreground": "c586c0",
+      "token": "entity.name.type.variant"
+    },
+    {
+      "foreground": "d4d4d4",
+      "token": "entity.name.function"
+    },
+    {
+      "foreground": "e6c07b",
+      "token": "variable.parameter"
+    },
+    {
+      "foreground": "d19a66",
+      "token": "entity.name.tag"
+    },
+    {
+      "foreground": "ff0000",
+      "background": "09090b",
+      "fontStyle": "bold",
+      "token": "invalid.illegal"
+    },
+    {
+      "foreground": "ff6f6f",
+      "background": "09090b",
+      "token": "invalid.deprecated"
+    },
+    {
+      "foreground": "9cdcfe",
+      "token": "punctuation"
+    }
+  ],
+  "colors": {
+    "editor.foreground": "#D0D0FF",
+    "editor.background": "#09090b",
+    "editor.selectionBackground": "#0a0a0b5f",
+    "editor.lineHighlightBackground": "#0a0a0b5f",
+    "editorCursor.foreground": "#7070FF",
+    "editorWhitespace.foreground": "#BFBFBF"
+  }
+}

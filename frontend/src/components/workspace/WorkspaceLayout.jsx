@@ -34,7 +34,7 @@ export default function WorkspaceLayout({
             >
                 {/* FILE TREE */}
                 <Box style={{ minHeight: "200px", height: "30vh" }}>
-                    <FileTree />
+                    <FileTree webcontainer={webcontainer} />
                 </Box>
 
                 {/* EDITOR */}
@@ -80,7 +80,7 @@ export default function WorkspaceLayout({
                     <Allotment>
 
                         <Allotment.Pane preferredSize={260} minSize={180}>
-                            <FileTree />
+                            <FileTree webcontainer={webcontainer} />
                         </Allotment.Pane>
 
                         <Allotment.Pane>
