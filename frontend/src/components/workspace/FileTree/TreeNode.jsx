@@ -11,6 +11,8 @@ import {
     renamePath
 } from "./fsOperations"
 
+import { useEditorStore } from "../../../store/editorStore"
+
 export default function TreeNode({
     node,
     webcontainer,
@@ -24,9 +26,13 @@ export default function TreeNode({
     const [menuPos, setMenuPos] = useState({ x: 0, y: 0 })
 
     const icon = resolveIcon(node.name, node.type, open)
+
+    const openFile = useEditorStore((state) => state.openFile)
+
     useEffect(() => {
         setMenuOpened(false)
     }, [])
+
     async function handleNewFile() {
 
         setMenuOpened(false)
@@ -40,7 +46,7 @@ export default function TreeNode({
 
     async function handleNewFolder() {
 
-
+        setMenuOpened(false)
 
         const name = prompt("Folder name")
         if (!name) return
@@ -90,6 +96,29 @@ export default function TreeNode({
         setMenuOpened(true)
     }
 
+    async function handleClick() {
+
+        if (node.type === "folder") {
+            setOpen(!open)
+            return
+        }
+
+        if (!webcontainer) return
+
+        try {
+
+            const content = await webcontainer.fs.readFile(
+                node.path,
+                "utf-8"
+            )
+
+            openFile(node.path, content)
+
+        } catch (err) {
+            console.error("Failed to open file", err)
+        }
+    }
+
     return (
         <>
 
@@ -107,10 +136,7 @@ export default function TreeNode({
                         borderRadius: 4
                     }}
                     className="tree-row"
-                    onClick={() => {
-                        if (node.type === "folder")
-                            setOpen(!open)
-                    }}
+                    onClick={handleClick}
                 >
 
                     {/* Dropdown Arrow */}

@@ -4,9 +4,10 @@ import { Allotment } from "allotment";
 import "allotment/dist/style.css";
 
 import FileTree from "./FileTree/FileTree";
-import Editor from "./Editor/Editor";
+
 import Preview from "./Preview/Preview";
 import Terminal from "./Terminal/Terminal";
+import CodeEditor from "./Editor/CodeEditor";
 
 export default function WorkspaceLayout({
     previewUrl,
@@ -39,7 +40,7 @@ export default function WorkspaceLayout({
 
                 {/* EDITOR */}
                 <Box style={{ minHeight: "320px", height: "45vh" }}>
-                    <Editor />
+                    <CodeEditor />
                 </Box>
 
                 {/* PREVIEW */}
@@ -80,11 +81,11 @@ export default function WorkspaceLayout({
                     <Allotment>
 
                         <Allotment.Pane preferredSize={260} minSize={180}>
-                            <FileTree webcontainer={webcontainer} />
+                            <FileTree webcontainer={webcontainer} logs={logs} />
                         </Allotment.Pane>
 
                         <Allotment.Pane>
-                            <Editor />
+                            <CodeEditor />
                         </Allotment.Pane>
 
                         <Allotment.Pane preferredSize={320} minSize={180}>

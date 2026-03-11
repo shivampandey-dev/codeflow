@@ -1,4 +1,5 @@
-import { Group, Text, ActionIcon } from "@mantine/core"
+import { useState } from "react"
+import { Group, Text, ActionIcon, Tooltip } from "@mantine/core"
 import {
     FilePlus,
     FolderPlus,
@@ -6,7 +7,32 @@ import {
     MoreHorizontal
 } from "lucide-react"
 
+const tooltipProps = {
+    withArrow: true,
+    openDelay: 300,
+    styles: {
+        tooltip: {
+            fontSize: "11px",
+            padding: "3px 6px",
+            lineHeight: 1.2
+        }
+    }
+}
+
 export default function FileTreeHeader({ refresh }) {
+
+    const [rotating, setRotating] = useState(false)
+
+    const handleRefresh = async () => {
+
+        setRotating(true)
+
+        await refresh?.()
+
+        setTimeout(() => {
+            setRotating(false)
+        }, 400)
+    }
 
     return (
 
@@ -24,21 +50,39 @@ export default function FileTreeHeader({ refresh }) {
 
             <Group gap={4}>
 
-                <ActionIcon size="sm" variant="subtle">
-                    <FilePlus size={14} />
-                </ActionIcon>
+                <Tooltip label="New File" {...tooltipProps}>
+                    <ActionIcon size="sm" variant="subtle">
+                        <FilePlus size={14} />
+                    </ActionIcon>
+                </Tooltip>
 
-                <ActionIcon size="sm" variant="subtle">
-                    <FolderPlus size={14} />
-                </ActionIcon>
+                <Tooltip label="New Folder" {...tooltipProps}>
+                    <ActionIcon size="sm" variant="subtle">
+                        <FolderPlus size={14} />
+                    </ActionIcon>
+                </Tooltip>
 
-                <ActionIcon size="sm" variant="subtle" onClick={refresh}>
-                    <RefreshCw size={14} />
-                </ActionIcon>
+                <Tooltip label="Refresh Explorer" {...tooltipProps}>
+                    <ActionIcon
+                        size="sm"
+                        variant="subtle"
+                        onClick={handleRefresh}
+                    >
+                        <RefreshCw
+                            size={14}
+                            style={{
+                                transition: "transform 0.35s ease",
+                                transform: rotating ? "rotate(360deg)" : "rotate(0deg)"
+                            }}
+                        />
+                    </ActionIcon>
+                </Tooltip>
 
-                <ActionIcon size="sm" variant="subtle">
-                    <MoreHorizontal size={14} />
-                </ActionIcon>
+                <Tooltip label="More Actions" {...tooltipProps}>
+                    <ActionIcon size="sm" variant="subtle">
+                        <MoreHorizontal size={14} />
+                    </ActionIcon>
+                </Tooltip>
 
             </Group>
 

@@ -5,9 +5,10 @@ import FileTreeHeader from "./FileTreeHeader"
 
 import { ScrollArea } from "@mantine/core"
 
-export default function FileTree({ webcontainer }) {
+export default function FileTree({ webcontainer, logs }) {
 
     const [tree, setTree] = useState([])
+    const [ready, setReady] = useState(false)
 
     async function refresh() {
 
@@ -16,12 +17,21 @@ export default function FileTree({ webcontainer }) {
         const data = await scanTree(webcontainer)
 
         setTree(data)
-
     }
 
     useEffect(() => {
         refresh()
     }, [webcontainer])
+
+    useEffect(() => {
+
+        if (!logs) return
+
+        if (logs.includes("Mounting")) {
+            setReady(true)
+        }
+
+    }, [logs])
 
     return (
 
@@ -33,11 +43,18 @@ export default function FileTree({ webcontainer }) {
             }}
         >
 
-            {/* Header */}
-            <FileTreeHeader refresh={refresh} />
+            {/* Header (only when ready) */}
+
+            {ready && (
+                <FileTreeHeader refresh={refresh} />
+            )}
 
             {/* Tree */}
-            <ScrollArea h="calc(100% - 32px)" px="xs">
+
+            <ScrollArea
+                h={ready ? "calc(100% - 32px)" : "100%"}
+                px="xs"
+            >
 
                 {tree.map(node => (
                     <TreeNode
@@ -52,6 +69,5 @@ export default function FileTree({ webcontainer }) {
             </ScrollArea>
 
         </div>
-
     )
 }
