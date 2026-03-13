@@ -16,9 +16,7 @@ export default function Tabs() {
     } = useEditorStore()
 
     function handleDragStart(e, index) {
-
         e.dataTransfer.setData("tabIndex", index)
-
     }
 
     function handleDrop(e, index) {
@@ -28,106 +26,132 @@ export default function Tabs() {
         )
 
         reorderTabs(from, index)
-
     }
 
     return (
 
-        <Group
-            gap={0}
+        <div
             style={{
                 borderBottom: "1px solid #1e293b",
                 background: "#020617",
-                overflowX: "auto"
+                overflowX: "auto",
+                overflowY: "hidden",
+                whiteSpace: "nowrap",
+                paddingRight: 20   // ⭐ space at right end
             }}
         >
 
-            {tabs.map((path, index) => {
+            <Group
+                gap={0}
+                wrap="nowrap"
+                style={{
+                    minWidth: "max-content"
+                }}
+            >
 
-                const name = path.split("/").pop()
+                {tabs.map((path, index) => {
 
-                const active = path === activeFile
+                    const name = path.split("/").pop()
 
-                const icon = resolveIcon(name, "file")
+                    const active = path === activeFile
 
-                return (
+                    const icon = resolveIcon(name, "file")
 
-                    <Group
-                        key={path}
-                        gap={6}
-                        px="sm"
-                        py={6}
+                    return (
 
-                        draggable
-                        onDragStart={(e) =>
-                            handleDragStart(e, index)
-                        }
+                        <Group
+                            key={path}
+                            gap={6}
+                            px="sm"
+                            py={6}
 
-                        onDragOver={(e) =>
-                            e.preventDefault()
-                        }
+                            draggable
+                            onDragStart={(e) =>
+                                handleDragStart(e, index)
+                            }
 
-                        onDrop={(e) =>
-                            handleDrop(e, index)
-                        }
+                            onDragOver={(e) =>
+                                e.preventDefault()
+                            }
 
-                        style={{
-                            cursor: "pointer",
-                            background: active
-                                ? "#0f172a"
-                                : "transparent",
-                            borderRight:
-                                "1px solid #1e293b"
-                        }}
+                            onDrop={(e) =>
+                                handleDrop(e, index)
+                            }
 
-                        onClick={() => openFile(path)}
+                            style={{
+                                cursor: "pointer",
+                                background: active
+                                    ? "#0f172a"
+                                    : "transparent",
 
-                        onAuxClick={(e) => {
-                            if (e.button === 1)
-                                closeFile(path)
-                        }}
-                    >
+                                borderRight: "1px solid #1e293b",
 
-                        <img
-                            src={icon}
-                            width={14}
-                            height={14}
-                        />
+                                flexShrink: 0, // ⭐ prevent shrinking
+                                minWidth: 120,
+                                height: 34
+                            }}
 
-                        <Text size="sm">
+                            onClick={() => openFile(path)}
 
-                            {name}
-
-                            {dirty[path] && (
-                                <span style={{ marginLeft: 4 }}>
-                                    ●
-                                </span>
-                            )}
-
-                        </Text>
-
-                        <ActionIcon
-                            size="xs"
-                            variant="subtle"
-
-                            onClick={(e) => {
-
-                                e.stopPropagation()
-
-                                closeFile(path)
-
+                            onAuxClick={(e) => {
+                                if (e.button === 1)
+                                    closeFile(path)
                             }}
                         >
-                            <X size={12} />
-                        </ActionIcon>
 
-                    </Group>
+                            <img
+                                src={icon}
+                                width={14}
+                                height={14}
+                            />
 
-                )
+                            <Text
+                                size="sm"
+                                style={{
+                                    maxWidth: 120,
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis"
+                                }}
+                            >
 
-            })}
+                                {name}
 
-        </Group>
+                                {dirty[path] && (
+                                    <span style={{ marginLeft: 4 }}>
+                                        ●
+                                    </span>
+                                )}
+
+                            </Text>
+
+                            {active && (
+
+                                <ActionIcon
+                                    size="xs"
+                                    variant="subtle"
+
+                                    onClick={(e) => {
+
+                                        e.stopPropagation()
+
+                                        closeFile(path)
+
+                                    }}
+                                >
+                                    <X size={12} />
+                                </ActionIcon>
+
+                            )}
+
+                        </Group>
+
+                    )
+
+                })}
+
+            </Group>
+
+        </div>
 
     )
 
