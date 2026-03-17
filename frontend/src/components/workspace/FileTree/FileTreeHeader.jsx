@@ -10,7 +10,7 @@ import {
 import { useSettingsStore } from "../../../store/settingsStore"
 import { useEditorStore } from "../../../store/editorStore"
 import { deriveUIColors } from "../../../utils/themeColors"
-
+import { useFileTreeStore } from "../../../store/fileTreeStore"
 const tooltipProps = {
     withArrow: true,
     openDelay: 300,
@@ -31,7 +31,8 @@ export default function FileTreeHeader({
 
     const { themeData } = useSettingsStore()
 
-    const { activeFile, startCreate } = useEditorStore()
+    const { startCreate } = useEditorStore()
+    const { selectedPath } = useFileTreeStore()
 
     const editorBg =
         themeData?.colors?.["editor.background"] || "#1e1e1e"
@@ -44,18 +45,21 @@ export default function FileTreeHeader({
 
     function getTargetDir() {
 
-        if (!activeFile) return "/workspace"
+        if (!selectedPath) return "/workspace"
 
-        // if clicked item is folder
-        if (!activeFile.split("/").pop().includes(".")) {
-            return activeFile
+        const name = selectedPath.split("/").pop()
+
+        // if selected is a file → return parent folder
+        if (name.includes(".")) {
+
+            const lastSlash = selectedPath.lastIndexOf("/")
+
+            return selectedPath.substring(0, lastSlash)
+
         }
-        // if clicked item is file → return parent folder
-        const lastSlash = activeFile.lastIndexOf("/")
 
-        if (lastSlash === -1) return "/workspace"
-
-        return activeFile.substring(0, lastSlash)
+        // if folder → return folder
+        return selectedPath
 
     }
 

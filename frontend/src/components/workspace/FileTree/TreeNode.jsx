@@ -6,6 +6,7 @@ import { resolveIcon } from "./iconResolver"
 
 import { useEditorStore } from "../../../store/editorStore"
 import { useSettingsStore } from "../../../store/settingsStore"
+import { useFileTreeStore } from "../../../store/fileTreeStore"
 
 import { deriveTreeGuide, deriveUIColors } from "../../../utils/themeColors"
 
@@ -17,21 +18,21 @@ export default function TreeNode({
 }) {
 
     const [open, setOpen] = useState(node.path === "/workspace")
-    const [renaming, setRenaming] = useState(false)
-    const [name, setName] = useState(node.name)
     const [creatingName, setCreatingName] = useState("")
 
     const inputRef = useRef(null)
 
     const {
         openFile,
-        activeFile,
-        getFileStatus,
         creating,
-        stopCreate
+        stopCreate,
+        getFileStatus
     } = useEditorStore()
 
-    const status = getFileStatus(node.path)
+    const {
+        selectedPath,
+        setSelected
+    } = useFileTreeStore()
 
     const {
         themeData,
@@ -48,13 +49,29 @@ export default function TreeNode({
 
     const ui = deriveUIColors(editorBg)
 
-    const isFolder = node.type === "folder"
-
     const icon = resolveIcon(node.name, node.type)
 
     const guideColor = deriveTreeGuide(editorBg, editorFg)
 
-    const isActive = activeFile === node.path
+    const isFolder = node.type === "folder"
+
+    const status = getFileStatus(node.path)
+
+    /*
+    =========================
+    ACTIVE NODE LOGIC
+    =========================
+    */
+
+    const selectedIsFile =
+        selectedPath?.split("/").pop()?.includes(".")
+
+    const parentPath = selectedIsFile
+        ? selectedPath.substring(0, selectedPath.lastIndexOf("/"))
+        : selectedPath
+
+    const isActive = parentPath === node.path
+
 
     /*
     =========================
@@ -65,7 +82,13 @@ export default function TreeNode({
     useEffect(() => {
 
         if (creating?.dir === node.path) {
+
             setOpen(true)
+
+            setTimeout(() => {
+                inputRef.current?.focus()
+            }, 0)
+
         }
 
     }, [creating, node.path])
@@ -88,69 +111,6 @@ export default function TreeNode({
             return themeData?.colors?.["gitDecoration.untrackedResourceForeground"] || "#3fb950"
 
         return editorFg
-    }
-
-    /*
-    =========================
-    RENAME LISTENER
-    =========================
-    */
-
-    useEffect(() => {
-
-        function handler(e) {
-
-            if (e.detail?.path === node.path) {
-
-                setRenaming(true)
-
-                setTimeout(() => {
-                    inputRef.current?.focus()
-                    inputRef.current?.select()
-                }, 0)
-
-            }
-
-        }
-
-        window.addEventListener("filetree-rename", handler)
-
-        return () =>
-            window.removeEventListener("filetree-rename", handler)
-
-    }, [node.path])
-
-
-    /*
-    =========================
-    RENAME FILE
-    =========================
-    */
-
-    async function handleRename() {
-
-        if (name === node.name) {
-            setRenaming(false)
-            return
-        }
-
-        try {
-
-            const newPath =
-                node.path.split("/").slice(0, -1).join("/") + "/" + name
-
-            await webcontainer.fs.rename(node.path, newPath)
-
-            setRenaming(false)
-
-            refresh()
-
-        } catch (err) {
-
-            console.error("Rename failed", err)
-            setRenaming(false)
-
-        }
 
     }
 
@@ -165,16 +125,20 @@ export default function TreeNode({
 
         if (e.key === "Enter") {
 
-            if (!creatingName) return
+            if (!creatingName.trim()) return
 
             const path = `${node.path}/${creatingName}`
 
             try {
 
                 if (creating.type === "file") {
+
                     await webcontainer.fs.writeFile(path, "")
+
                 } else {
+
                     await webcontainer.fs.mkdir(path)
+
                 }
 
                 setCreatingName("")
@@ -201,18 +165,17 @@ export default function TreeNode({
 
     /*
     =========================
-    OPEN / TOGGLE
+    CLICK HANDLER
     =========================
     */
 
-    function toggle() {
+    function handleClick() {
+
+        setSelected(node.path)
 
         if (isFolder) {
 
             setOpen(!open)
-
-            // set folder as active
-            openFile(node.path)
 
         } else {
 
@@ -221,6 +184,7 @@ export default function TreeNode({
         }
 
     }
+
 
     /*
     =========================
@@ -231,6 +195,9 @@ export default function TreeNode({
     function handleRightClick(e) {
 
         e.preventDefault()
+        e.stopPropagation()
+
+        setSelected(node.path)
 
         window.dispatchEvent(
             new CustomEvent("filetree-contextmenu", {
@@ -257,7 +224,7 @@ export default function TreeNode({
 
             <Group
                 gap={6}
-                onClick={toggle}
+                onClick={handleClick}
                 onContextMenu={handleRightClick}
 
                 style={{
@@ -266,17 +233,25 @@ export default function TreeNode({
                     height: compactFolders ? 22 : 28,
                     userSelect: "none",
                     borderRadius: 4,
-                    background: isActive ? ui.activeBg : "transparent"
+                    backgroundColor: isActive
+                        ? ui.activeBg || "#2a2d2e"
+                        : "transparent"
                 }}
 
                 onMouseEnter={(e) => {
+
                     if (!isActive)
-                        e.currentTarget.style.background = ui.hoverBg
+                        e.currentTarget.style.backgroundColor =
+                            ui.hoverBg || "#2a2d2e"
+
                 }}
 
                 onMouseLeave={(e) => {
+
                     if (!isActive)
-                        e.currentTarget.style.background = "transparent"
+                        e.currentTarget.style.backgroundColor =
+                            "transparent"
+
                 }}
             >
 
@@ -294,78 +269,31 @@ export default function TreeNode({
                     height={fileTreeIconSize}
                 />
 
-                {renaming ? (
+                <Text
+                    style={{
+                        fontSize: fileTreeFontSize,
+                        color: getFileColor(),
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        flex: 1
+                    }}
+                >
+                    {node.name}
+                </Text>
 
-                    <input
-                        ref={inputRef}
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
+                {status && (
 
-                        onBlur={handleRename}
-
-                        onKeyDown={(e) => {
-
-                            if (e.key === "Enter") handleRename()
-
-                            if (e.key === "Escape") {
-
-                                setName(node.name)
-                                setRenaming(false)
-
-                            }
-
-                        }}
-
+                    <Text
+                        size="xs"
+                        fw={700}
                         style={{
-                            fontSize: fileTreeFontSize,
-                            background: ui.sidebarBg,
-                            border: `1px solid ${ui.border}`,
-                            color: editorFg,
-                            outline: "none",
-                            padding: "2px 4px",
-                            borderRadius: 3
-                        }}
-                    />
-
-                ) : (
-
-                    <Group
-                        style={{
-                            flex: 1,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between"
+                            color: getFileColor(),
+                            marginLeft: 8
                         }}
                     >
-
-                        <Text
-                            style={{
-                                fontSize: fileTreeFontSize,
-                                color: getFileColor(),
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap"
-                            }}
-                        >
-                            {node.name}
-                        </Text>
-
-                        {status && (
-
-                            <Text
-                                size="xs"
-                                fw={700}
-                                style={{
-                                    color: getFileColor(),
-                                    marginLeft: 8
-                                }}
-                            >
-                                {status}
-                            </Text>
-
-                        )}
-
-                    </Group>
+                        {status}
+                    </Text>
 
                 )}
 
@@ -397,9 +325,12 @@ export default function TreeNode({
                     {creating?.dir === node.path && (
 
                         <input
+                            ref={inputRef}
                             autoFocus
                             value={creatingName}
-                            onChange={(e) => setCreatingName(e.target.value)}
+                            onChange={(e) =>
+                                setCreatingName(e.target.value)
+                            }
                             onKeyDown={handleCreate}
 
                             placeholder={
@@ -416,7 +347,8 @@ export default function TreeNode({
                                 outline: "none",
                                 padding: "2px 4px",
                                 borderRadius: 3,
-                                marginTop: 4
+                                marginTop: 4,
+                                width: "100%"
                             }}
                         />
 

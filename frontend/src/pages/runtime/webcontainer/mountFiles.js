@@ -268,11 +268,21 @@ const templates = {
 };
 
 export async function mountTemplate(webcontainer, templateId) {
+
     const files = templates[templateId];
 
     if (!files) {
         throw new Error(`Unknown template: ${templateId}`);
     }
 
-    await webcontainer.mount(files);
+    // create workspace folder
+    await webcontainer.fs.mkdir("/workspace").catch(() => { });
+
+    // mount template INSIDE workspace
+    await webcontainer.mount({
+        workspace: {
+            directory: files
+        }
+    });
+
 }

@@ -25,6 +25,7 @@ export async function startDevServer(webcontainer, onOutput) {
         await webcontainer.fs.mkdir("/workspace").catch(() => { });
 
         /* ---------------- MOVE ROOT FILES INTO PROJECT ---------------- */
+        /* ---------------- MOVE ROOT FILES INTO PROJECT ---------------- */
 
         const rootFiles = await webcontainer.fs.readdir("/");
 
@@ -46,7 +47,6 @@ export async function startDevServer(webcontainer, onOutput) {
             } catch { }
 
         }
-
         /* ---------------- INSTALL DEPENDENCIES ---------------- */
 
         write("\n📦 Installing dependencies...\n");

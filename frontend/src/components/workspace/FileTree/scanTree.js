@@ -17,13 +17,9 @@ export async function scanTree(webcontainer, path = "/workspace") {
 
     for (const entry of entries) {
 
-        // skip node_modules for performance
         if (entry.name === "node_modules") continue
 
-        const fullPath =
-            path === "/workspace"
-                ? `/workspace/${entry.name}`
-                : `${path}/${entry.name}`
+        const fullPath = `${path}/${entry.name}`
 
         if (entry.isDirectory()) {
 
@@ -47,5 +43,4 @@ export async function scanTree(webcontainer, path = "/workspace") {
     }
 
     return tree
-
 }
