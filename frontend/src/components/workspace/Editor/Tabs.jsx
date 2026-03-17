@@ -1,8 +1,12 @@
 import { Group, Text, ActionIcon } from "@mantine/core"
 import { X } from "lucide-react"
+import { useState } from "react"
 
 import { useEditorStore } from "../../../store/editorStore"
 import { resolveIcon } from "../FileTree/iconResolver"
+
+import { useSettingsStore } from "../../../store/settingsStore"
+import { deriveUIColors } from "../../../utils/themeColors"
 
 export default function Tabs() {
 
@@ -15,16 +19,24 @@ export default function Tabs() {
         reorderTabs
     } = useEditorStore()
 
+    const { themeData } = useSettingsStore()
+
+    const editorBg =
+        themeData?.colors?.["editor.background"] || "#1e1e1e"
+
+    const editorFg =
+        themeData?.colors?.["editor.foreground"] || "#d4d4d4"
+
+    const ui = deriveUIColors(editorBg)
+
+    const [hovered, setHovered] = useState(null)
+
     function handleDragStart(e, index) {
         e.dataTransfer.setData("tabIndex", index)
     }
 
     function handleDrop(e, index) {
-
-        const from = Number(
-            e.dataTransfer.getData("tabIndex")
-        )
-
+        const from = Number(e.dataTransfer.getData("tabIndex"))
         reorderTabs(from, index)
     }
 
@@ -32,30 +44,21 @@ export default function Tabs() {
 
         <div
             style={{
-                borderBottom: "1px solid #1e293b",
-                background: "#020617",
+                borderBottom: `1px solid ${ui.border}`,
+                background: ui.sidebarBg,
                 overflowX: "auto",
-                overflowY: "hidden",
-                whiteSpace: "nowrap",
-                paddingRight: 20   // ⭐ space at right end
+                whiteSpace: "nowrap"
             }}
         >
 
-            <Group
-                gap={0}
-                wrap="nowrap"
-                style={{
-                    minWidth: "max-content"
-                }}
-            >
+            <Group gap={0} wrap="nowrap">
 
                 {tabs.map((path, index) => {
 
                     const name = path.split("/").pop()
-
                     const active = path === activeFile
-
                     const icon = resolveIcon(name, "file")
+                    const isHovered = hovered === path
 
                     return (
 
@@ -63,39 +66,48 @@ export default function Tabs() {
                             key={path}
                             gap={6}
                             px="sm"
-                            py={6}
 
                             draggable
-                            onDragStart={(e) =>
-                                handleDragStart(e, index)
-                            }
+                            onDragStart={(e) => handleDragStart(e, index)}
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={(e) => handleDrop(e, index)}
 
-                            onDragOver={(e) =>
-                                e.preventDefault()
-                            }
+                            onMouseEnter={() => setHovered(path)}
+                            onMouseLeave={() => setHovered(null)}
 
-                            onDrop={(e) =>
-                                handleDrop(e, index)
-                            }
+                            onClick={(e) => {
+                                if (e.target.closest("button")) return
+                                if (!active) openFile(path)
+                            }}
+
+                            onAuxClick={(e) => {
+                                if (e.button === 1) closeFile(path)
+                            }}
 
                             style={{
                                 cursor: "pointer",
-                                background: active
-                                    ? "#0f172a"
-                                    : "transparent",
 
-                                borderRight: "1px solid #1e293b",
+                                background:
+                                    active
+                                        ? editorBg
+                                        : isHovered
+                                            ? ui.hover
+                                            : "transparent",
 
-                                flexShrink: 0, // ⭐ prevent shrinking
+                                borderRight: `1px solid ${ui.border}`,
+
+                                borderTop:
+                                    active
+                                        ? "2px solid #007acc"
+                                        : "2px solid transparent",
+
                                 minWidth: 120,
-                                height: 34
-                            }}
+                                height: 32,
+                                flexShrink: 0,
 
-                            onClick={() => openFile(path)}
+                                alignItems: "center",
 
-                            onAuxClick={(e) => {
-                                if (e.button === 1)
-                                    closeFile(path)
+                                transition: "background 0.15s ease"
                             }}
                         >
 
@@ -108,34 +120,38 @@ export default function Tabs() {
                             <Text
                                 size="sm"
                                 style={{
-                                    maxWidth: 120,
+                                    color: editorFg,
+                                    maxWidth: 110,
                                     overflow: "hidden",
-                                    textOverflow: "ellipsis"
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap"
                                 }}
                             >
 
                                 {name}
 
                                 {dirty[path] && (
-                                    <span style={{ marginLeft: 4 }}>
+                                    <span
+                                        style={{
+                                            marginLeft: 6,
+                                            color: "#e2c08d"
+                                        }}
+                                    >
                                         ●
                                     </span>
                                 )}
 
                             </Text>
 
-                            {active && (
+                            {(active || isHovered) && (
 
                                 <ActionIcon
                                     size="xs"
                                     variant="subtle"
-
-                                    onClick={(e) => {
-
+                                    onMouseDown={(e) => {
+                                        e.preventDefault()
                                         e.stopPropagation()
-
                                         closeFile(path)
-
                                     }}
                                 >
                                     <X size={12} />

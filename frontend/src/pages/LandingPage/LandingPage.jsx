@@ -10,10 +10,10 @@ import CodeTransformSection from "../../components/landing/CodeTransformSection"
 import TechFooter from "../../components/common/TechFooter";
 import CodeflowFeatures from "../../components/landing/CodeflowFeatures";
 
-
 export default function LandingPage() {
     return (
         <Box pos="relative">
+
             {/* HERO SECTION */}
             <Box pos="relative" mih="100vh">
                 <BackgroundLanding />
@@ -28,15 +28,15 @@ export default function LandingPage() {
                     display: "flex",
                     justifyContent: "center",
 
-                    /* Responsive vertical and horizontal padding */
-                    paddingBlock: "clamp(40px, 12vh, 140px)",      // top/bottom
-                    paddingInline: "clamp(16px, 6vw, 60px)",       // left/right
+                    paddingBlock: "clamp(40px, 12vh, 140px)",
+                    paddingInline: "clamp(16px, 6vw, 60px)",
 
-                    boxSizing: "border-box",                       // critical
+                    boxSizing: "border-box",
                     width: "100%",
                 }}
             >
-                {/* NEURAL BACKGROUND (absolute, non-layout) */}
+
+                {/* NEURAL BACKGROUND */}
                 <SectionNeuralBackground />
 
                 {/* FADE OVERLAY */}
@@ -45,27 +45,45 @@ export default function LandingPage() {
                         position: "absolute",
                         inset: 0,
                         background: `
-              radial-gradient(
-                ellipse at top,
-                rgba(59,130,246,0.12) 0%,
-                rgba(1,2,5,1) 55%
-              )
-            `,
+                        radial-gradient(
+                            ellipse at top,
+                            rgba(59,130,246,0.12) 0%,
+                            rgba(1,2,5,1) 55%
+                        )
+                        `,
                         pointerEvents: "none",
                         zIndex: 1,
                     }}
                 />
 
-                {/* CONTENT (stacked above background) */}
-                <Box style={{ position: "relative", zIndex: 2, width: "100%" }}>
+                {/* CONTENT */}
+                <Box
+                    style={{
+                        position: "relative",
+                        zIndex: 2,
+                        width: "100%",
+                    }}
+                >
 
+                    {/* WHAT CODEFLOW DOES */}
+                    <CodeTransformSection />
+
+                    {/* MAIN FEATURES */}
+                    <CodeflowFeatures />
+
+                    {/* HOW IT WORKS */}
+                    <ProcessFlow isLoader={false} />
+
+                    {/* WHY CODEFLOW */}
                     <SectionHero title="Why Codeflow" />
                     <IDEComparisonSection />
-                    <ProcessFlow isLoader={false} />
-                    <CodeTransformSection />
-                    <CodeflowFeatures />
+
+                    {/* FINAL CTA */}
                     <CTAButtons />
+
+                    {/* FOOTER */}
                     <TechFooter />
+
                 </Box>
             </Box>
         </Box>

@@ -1,240 +1,304 @@
-import { useEffect, useState } from "react"
-import { Group, Text, Menu } from "@mantine/core"
+import { useState, useRef, useEffect } from "react"
+import { Group, Text } from "@mantine/core"
 import { ChevronRight, ChevronDown } from "lucide-react"
 
 import { resolveIcon } from "./iconResolver"
 
-import {
-    createFile,
-    createFolder,
-    deletePath,
-    renamePath
-} from "./fsOperations"
-
 import { useEditorStore } from "../../../store/editorStore"
+import { useSettingsStore } from "../../../store/settingsStore"
+
+import { deriveTreeGuide, deriveUIColors } from "../../../utils/themeColors"
 
 export default function TreeNode({
     node,
+    level,
     webcontainer,
-    refresh,
-    level
+    refresh
 }) {
 
-    const [open, setOpen] = useState(level === 0 ? true : false)
+    const [open, setOpen] = useState(false)
+    const [renaming, setRenaming] = useState(false)
+    const [name, setName] = useState(node.name)
 
-    const [menuOpened, setMenuOpened] = useState(false)
-    const [menuPos, setMenuPos] = useState({ x: 0, y: 0 })
+    const inputRef = useRef(null)
 
-    const icon = resolveIcon(node.name, node.type, open)
+    const {
+        openFile,
+        activeFile,
+        getFileStatus
+    } = useEditorStore()
 
-    const openFile = useEditorStore((state) => state.openFile)
+    const status = getFileStatus(node.path)
+
+    const {
+        themeData,
+        fileTreeFontSize,
+        fileTreeIconSize,
+        compactFolders
+    } = useSettingsStore()
+
+    const editorBg =
+        themeData?.colors?.["editor.background"] || "#1e1e1e"
+
+    const editorFg =
+        themeData?.colors?.["editor.foreground"] || "#d4d4d4"
+
+    const ui = deriveUIColors(editorBg)
+
+    const isFolder = node.type === "folder"
+
+    const icon = resolveIcon(node.name, node.type)
+
+    const guideColor = deriveTreeGuide(editorBg, editorFg)
+
+    function getFileColor() {
+
+        if (!status) return editorFg
+
+        if (status === "M")
+            return themeData?.colors?.["gitDecoration.modifiedResourceForeground"] || "#58a6ff"
+
+        if (status === "U")
+            return themeData?.colors?.["gitDecoration.untrackedResourceForeground"] || "#3fb950"
+
+        return editorFg
+    }
 
     useEffect(() => {
-        setMenuOpened(false)
-    }, [])
 
-    async function handleNewFile() {
+        function handler(e) {
 
-        setMenuOpened(false)
+            if (e.detail?.path === node.path) {
 
-        const name = prompt("File name")
-        if (!name) return
+                setRenaming(true)
 
-        await createFile(webcontainer, `${node.path}/${name}`)
-        refresh()
-    }
+                setTimeout(() => {
+                    inputRef.current?.focus()
+                    inputRef.current?.select()
+                }, 0)
 
-    async function handleNewFolder() {
+            }
 
-        setMenuOpened(false)
+        }
 
-        const name = prompt("Folder name")
-        if (!name) return
+        window.addEventListener("filetree-rename", handler)
 
-        await createFolder(webcontainer, `${node.path}/${name}`)
-        refresh()
-    }
+        return () =>
+            window.removeEventListener("filetree-rename", handler)
 
-    async function handleDelete() {
+    }, [node.path])
 
-        setMenuOpened(false)
-
-        await deletePath(webcontainer, node.path)
-        refresh()
-    }
 
     async function handleRename() {
 
-        setMenuOpened(false)
+        if (name === node.name) {
+            setRenaming(false)
+            return
+        }
 
-        const newName = prompt("Rename", node.name)
-        if (!newName) return
+        try {
 
-        const parent =
-            node.path.split("/").slice(0, -1).join("/")
+            const newPath =
+                node.path.split("/").slice(0, -1).join("/") + "/" + name
 
-        await renamePath(
-            webcontainer,
-            node.path,
-            `${parent}/${newName}`
-        )
+            await webcontainer.fs.rename(node.path, newPath)
 
-        refresh()
+            setRenaming(false)
+
+            refresh()
+
+        } catch (err) {
+
+            console.error("Rename failed", err)
+
+            setRenaming(false)
+
+        }
+
     }
 
-    const padding = level * 8
+    function toggle() {
+
+        if (isFolder) {
+
+            setOpen(!open)
+
+        } else {
+
+            openFile(node.path)
+
+        }
+
+    }
 
     function handleRightClick(e) {
 
         e.preventDefault()
 
-        setMenuPos({
-            x: e.clientX,
-            y: e.clientY
-        })
+        window.dispatchEvent(
+            new CustomEvent("filetree-contextmenu", {
+                detail: {
+                    x: e.clientX,
+                    y: e.clientY,
+                    node
+                }
+            })
+        )
 
-        setMenuOpened(true)
     }
 
-    async function handleClick() {
-
-        if (node.type === "folder") {
-            setOpen(!open)
-            return
-        }
-
-        if (!webcontainer) return
-
-        try {
-
-            const content = await webcontainer.fs.readFile(
-                node.path,
-                "utf-8"
-            )
-
-            openFile(node.path, content)
-
-        } catch (err) {
-            console.error("Failed to open file", err)
-        }
-    }
+    const isActive = activeFile === node.path
 
     return (
-        <>
 
-            {/* FILE ROW */}
+        <div>
 
-            <div onContextMenu={handleRightClick}>
+            <Group
+                gap={6}
+                onClick={toggle}
+                onContextMenu={handleRightClick}
 
-                <Group
-                    gap={3}
-                    style={{
-                        paddingLeft: padding,
-                        height: 24,
-                        cursor: "pointer",
-                        userSelect: "none",
-                        borderRadius: 4
-                    }}
-                    className="tree-row"
-                    onClick={handleClick}
-                >
+                style={{
+                    cursor: "pointer",
+                    paddingLeft: level * (compactFolders ? 12 : 16),
+                    height: compactFolders ? 22 : 28,
+                    userSelect: "none",
+                    borderRadius: 4,
+                    background: isActive ? ui.activeBg : "transparent"
+                }}
 
-                    {/* Dropdown Arrow */}
+                onMouseEnter={(e) => {
+                    if (!isActive)
+                        e.currentTarget.style.background = ui.hoverBg
+                }}
 
-                    {node.type === "folder" && (
-                        open
-                            ? <ChevronDown size={14} />
-                            : <ChevronRight size={14} />
-                    )}
-
-                    {node.type !== "folder" && (
-                        <div style={{ width: 14 }} />
-                    )}
-
-                    {/* File Icon */}
-
-                    <img
-                        src={icon}
-                        width={16}
-                        height={16}
-                    />
-
-                    <Text size="sm">
-                        {node.name}
-                    </Text>
-
-                </Group>
-
-            </div>
-
-            {/* CONTEXT MENU */}
-
-            <Menu
-                opened={menuOpened}
-                onChange={setMenuOpened}
-                position="bottom-start"
-                withinPortal
+                onMouseLeave={(e) => {
+                    if (!isActive)
+                        e.currentTarget.style.background = "transparent"
+                }}
             >
 
-                <Menu.Target>
-                    <div
+                {isFolder ? (
+                    open
+                        ? <ChevronDown size={14} />
+                        : <ChevronRight size={14} />
+                ) : (
+                    <div style={{ width: 14 }} />
+                )}
+
+                <img
+                    src={icon}
+                    width={fileTreeIconSize}
+                    height={fileTreeIconSize}
+                />
+
+                {renaming ? (
+
+                    <input
+                        ref={inputRef}
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+
+                        onBlur={handleRename}
+
+                        onKeyDown={(e) => {
+
+                            if (e.key === "Enter") handleRename()
+
+                            if (e.key === "Escape") {
+
+                                setName(node.name)
+
+                                setRenaming(false)
+
+                            }
+
+                        }}
+
                         style={{
-                            position: "fixed",
-                            top: menuPos.y,
-                            left: menuPos.x
+                            fontSize: fileTreeFontSize,
+                            background: ui.sidebarBg,
+                            border: `1px solid ${ui.border}`,
+                            color: editorFg,
+                            outline: "none",
+                            padding: "2px 4px",
+                            borderRadius: 3
                         }}
                     />
-                </Menu.Target>
 
-                <Menu.Dropdown>
+                ) : (
 
-                    {node.type === "folder" && (
-                        <>
-                            <Menu.Item onClick={handleNewFile}>
-                                New File
-                            </Menu.Item>
-
-                            <Menu.Item onClick={handleNewFolder}>
-                                New Folder
-                            </Menu.Item>
-                        </>
-                    )}
-
-                    <Menu.Item onClick={handleRename}>
-                        Rename
-                    </Menu.Item>
-
-                    <Menu.Item
-                        color="red"
-                        onClick={handleDelete}
+                    <Group
+                        style={{
+                            flex: 1,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between"
+                        }}
                     >
-                        Delete
-                    </Menu.Item>
 
-                </Menu.Dropdown>
+                        <Text
+                            style={{
+                                fontSize: fileTreeFontSize,
+                                color: getFileColor(),
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap"
+                            }}
+                        >
+                            {node.name}
+                        </Text>
 
-            </Menu>
+                        {status && (
 
-            {/* Children */}
+                            <Text
+                                size="xs"
+                                fw={700}
+                                style={{
+                                    color: getFileColor(),
+                                    marginLeft: 8
+                                }}
+                            >
+                                {status}
+                            </Text>
 
-            {node.type === "folder" && open && (
+                        )}
 
-                <div className="tree-children">
+                    </Group>
 
-                    {node.children?.map(child => (
+                )}
+
+            </Group>
+
+
+            {isFolder && open && node.children && (
+
+                <div
+                    style={{
+                        marginLeft: 8,
+                        borderLeft: `1px solid ${guideColor}`,
+                        paddingLeft: 8
+                    }}
+                >
+
+                    {node.children.map(child => (
+
                         <TreeNode
                             key={child.path}
                             node={child}
+                            level={level + 1}
                             webcontainer={webcontainer}
                             refresh={refresh}
-                            level={level + 1}
                         />
+
                     ))}
 
                 </div>
 
             )}
 
-        </>
+        </div>
+
     )
+
 }

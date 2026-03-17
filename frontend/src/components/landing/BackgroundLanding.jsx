@@ -1,6 +1,7 @@
 import { Box } from "@mantine/core";
 import { useEffect, useRef, useState, useMemo } from "react";
 import image from "../../Assets/logo.png";
+import HeroText from "../common/HeroText";
 import {
     Rocket,
     Zap,
@@ -48,7 +49,7 @@ export default function BackgroundLanding() {
         >
             <NeuralBackground />
 
-            {/* ================= FLOATING PARTICLES ================= */}
+            {/* FLOATING PARTICLES */}
             {[...Array(isMobile ? 10 : 20)].map((_, i) => {
                 const size = Math.random() * 4 + 2;
 
@@ -76,7 +77,10 @@ export default function BackgroundLanding() {
                 );
             })}
 
-            {/* ================= RINGS WRAPPER ================= */}
+            {/* HERO TEXT */}
+            <HeroText />
+
+            {/* RINGS WRAPPER */}
             <Box
                 style={{
                     position: "absolute",
@@ -90,10 +94,10 @@ export default function BackgroundLanding() {
                 <Ring
                     size={outerSize}
                     speed="90s"
+                    orbitCount={5}
                     headings={[
                         { text: "FAST", angle: 60, color: "#73d9b4" },
-                        { text: "SECRE", angle: 150, color: "#ea0dea" },
-
+                        { text: "SECURE", angle: 150, color: "#ea0dea" },
                     ]}
                     glow="rgba(59,130,246,0.15)"
                     color="#60a5fa"
@@ -103,10 +107,10 @@ export default function BackgroundLanding() {
                     size={middleSize}
                     speed="60s"
                     reverse
+                    orbitCount={4}
                     headings={[
                         { text: "ZERO SETUP", angle: 60, color: "#1093b8" },
                         { text: "INSTANT", angle: 150, color: "#a78bfa" },
-                       
                     ]}
                     glow="rgba(52,211,153,0.15)"
                     color="#34d399"
@@ -115,12 +119,30 @@ export default function BackgroundLanding() {
                 <Ring
                     size={innerSize}
                     speed="40s"
+                    orbitCount={3}
                     headings={[]}
                     glow="rgba(167,139,250,0.15)"
                     color="#a78bfa"
                 />
 
                 <CenterCore isMobile={isMobile} />
+
+                {/* CENTER GLOW */}
+                <Box
+                    style={{
+                        position: "absolute",
+                        left: "50%",
+                        top: "50%",
+                        transform: "translate(-50%, -50%)",
+                        width: isMobile ? 200 : 320,
+                        height: isMobile ? 200 : 320,
+                        borderRadius: "50%",
+                        background:
+                            "radial-gradient(circle, rgba(99,102,241,0.35) 0%, rgba(99,102,241,0.08) 45%, transparent 70%)",
+                        filter: "blur(40px)",
+                        pointerEvents: "none",
+                    }}
+                />
 
                 {/* LOGO */}
                 <Box
@@ -143,6 +165,7 @@ export default function BackgroundLanding() {
                         <img
                             src={image}
                             alt="Codeflow"
+
                             style={{
                                 height: isMobile ? 174 : 256,
                                 width: "auto",
@@ -225,7 +248,7 @@ function NeuralBackground() {
 
 /* ================= RING ================= */
 
-function Ring({ size, speed, reverse, glow, headings = [], color }) {
+function Ring({ size, speed, reverse, glow, headings = [], color, orbitCount = 4 }) {
     return (
         <Box
             style={{
@@ -243,10 +266,36 @@ function Ring({ size, speed, reverse, glow, headings = [], color }) {
                     border: "1px solid rgba(255,255,255,0.08)",
                     boxShadow: `0 0 30px ${glow}`,
                     position: "relative",
-                    animation: `rotateOrbit ${speed} linear infinite ${reverse ? "reverse" : ""
-                        }`,
+                    animation: `rotateOrbit ${speed} linear infinite ${reverse ? "reverse" : ""}`,
                 }}
             >
+                {/* ORBIT NODES */}
+                {Array.from({ length: orbitCount }).map((_, i) => (
+                    <Box
+                        key={i}
+                        style={{
+                            position: "absolute",
+                            inset: 0,
+                            transform: `rotate(${(360 / orbitCount) * i}deg)`,
+                        }}
+                    >
+                        <Box
+                            style={{
+                                position: "absolute",
+                                top: -4,
+                                left: "50%",
+                                transform: "translateX(-50%)",
+                                width: 6,
+                                height: 6,
+                                borderRadius: "50%",
+                                background: color,
+                                boxShadow: `0 0 8px ${color}, 0 0 16px ${color}80`,
+                            }}
+                        />
+                    </Box>
+                ))}
+
+                {/* HEADINGS */}
                 {headings.map((h, i) => {
                     const c = h.color || color;
 
@@ -276,20 +325,11 @@ function Ring({ size, speed, reverse, glow, headings = [], color }) {
                                         letterSpacing: 0.6,
                                         fontWeight: 600,
                                         color: "#e2e8f0",
-
                                         background: `linear-gradient(135deg, ${c}40, ${c}15)`,
-
                                         border: `1px solid ${c}55`,
-
                                         backdropFilter: "blur(10px)",
-
-                                        boxShadow: `
-                      0 0 12px ${c}40,
-                      inset 0 0 12px ${c}20
-                    `,
-
+                                        boxShadow: `0 0 12px ${c}40, inset 0 0 12px ${c}20`,
                                         textShadow: `0 0 6px ${c}`,
-
                                         animation: "badgePulse 4s ease-in-out infinite",
                                     }}
                                 >

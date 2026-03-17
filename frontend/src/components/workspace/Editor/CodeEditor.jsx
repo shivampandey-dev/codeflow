@@ -2,10 +2,18 @@ import Editor, { useMonaco } from "@monaco-editor/react"
 import { useEditorStore } from "../../../store/editorStore"
 import { getLanguage } from "./languageMap"
 import Tabs from "./Tabs"
-import { useEffect, useRef } from "react"
+import SettingsPanel from "./SettingsPanel"
+
+import { useSettingsStore } from "../../../store/settingsStore"
+import { loadMonacoTheme } from "../../../utils/loadTheme"
+import { deriveUIColors } from "../../../utils/themeColors"
+
+import { useEffect, useRef, useState } from "react"
+
+import { ActionIcon } from "@mantine/core"
+import { Settings } from "lucide-react"
 
 export default function CodeEditor() {
-
     const {
         activeFile,
         contents,
@@ -14,18 +22,48 @@ export default function CodeEditor() {
         webcontainer
     } = useEditorStore()
 
+    const { fontSize, theme, setThemeData, themeData } = useSettingsStore()
+
     const monaco = useMonaco()
 
     const fileName = activeFile?.split("/").pop()
-    const language = getLanguage(fileName)
+    const language = getLanguage(fileName || "")
 
     const saveTimeout = useRef(null)
     const watcherStarted = useRef(false)
 
+    const [settingsOpen, setSettingsOpen] = useState(false)
+
     /*
-    --------------------------------
+    HEADER THEME COLORS
+    */
+
+    const editorBg =
+        themeData?.colors?.["editor.background"] || "#1e1e1e"
+
+    const ui = deriveUIColors(editorBg)
+
+    /*
+    APPLY SELECTED THEME
+    */
+
+    useEffect(() => {
+
+        if (!monaco) return
+
+        async function applyTheme() {
+
+            const data = await loadMonacoTheme(monaco, theme)
+            setThemeData(data)
+
+        }
+
+        applyTheme()
+
+    }, [theme, monaco, setThemeData])
+
+    /*
     LOAD TYPES FROM NODE_MODULES
-    --------------------------------
     */
 
     async function loadTypes(monacoInstance) {
@@ -54,7 +92,6 @@ export default function CodeEditor() {
 
                     if (stat.isDirectory()) {
 
-                        // skip large folders
                         if (
                             entry === ".bin" ||
                             entry === "dist" ||
@@ -87,14 +124,10 @@ export default function CodeEditor() {
 
         await walk("/node_modules")
 
-        console.log("Loaded type files:", loaded.size)
-
     }
 
     /*
-    --------------------------------
-    WATCH NODE_MODULES FOR CHANGES
-    --------------------------------
+    WATCH NODE_MODULES
     */
 
     async function watchNodeModules(monacoInstance) {
@@ -112,24 +145,16 @@ export default function CodeEditor() {
 
             watcher.on("change", async () => {
 
-                console.log("node_modules updated → reloading types")
-
                 await loadTypes(monacoInstance)
 
             })
 
-        } catch (err) {
-
-            console.log("Watcher failed:", err)
-
-        }
+        } catch { }
 
     }
 
     /*
-    --------------------------------
     MONACO INITIALIZATION
-    --------------------------------
     */
 
     function handleEditorMount(editor, monacoInstance) {
@@ -137,26 +162,20 @@ export default function CodeEditor() {
         monacoInstance.languages.typescript.javascriptDefaults.setCompilerOptions({
 
             target: monacoInstance.languages.typescript.ScriptTarget.ES2020,
-
             module: monacoInstance.languages.typescript.ModuleKind.ESNext,
-
             moduleResolution:
                 monacoInstance.languages.typescript.ModuleResolutionKind.NodeJs,
 
             allowNonTsExtensions: true,
-
             allowJs: true,
 
             jsx: monacoInstance.languages.typescript.JsxEmit.ReactJSX,
 
             esModuleInterop: true,
-
             allowSyntheticDefaultImports: true,
-
             resolveJsonModule: true,
 
             strict: false,
-
             noEmit: true
 
         })
@@ -168,28 +187,25 @@ export default function CodeEditor() {
 
         })
 
-        // load types
         loadTypes(monacoInstance)
-
-        // watch node_modules
         watchNodeModules(monacoInstance)
 
-        // Ctrl + S
         editor.addCommand(
             monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.KeyS,
             async () => {
-
                 await saveFile()
-
             }
+        )
+
+        editor.addCommand(
+            monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.Comma,
+            () => setSettingsOpen(true)
         )
 
     }
 
     /*
-    --------------------------------
-    REGISTER FILES IN MONACO
-    --------------------------------
+    REGISTER FILE MODELS
     */
 
     useEffect(() => {
@@ -202,17 +218,19 @@ export default function CodeEditor() {
 
             let model = monaco.editor.getModel(uri)
 
+            const safeCode = code ?? ""
+
             if (!model) {
 
                 monaco.editor.createModel(
-                    code,
+                    safeCode,
                     getLanguage(path),
                     uri
                 )
 
-            } else if (model.getValue() !== code) {
+            } else if (model.getValue() !== safeCode) {
 
-                model.setValue(code)
+                model.setValue(safeCode)
 
             }
 
@@ -221,9 +239,7 @@ export default function CodeEditor() {
     }, [contents, monaco])
 
     /*
-    --------------------------------
     AUTO SAVE
-    --------------------------------
     */
 
     useEffect(() => {
@@ -248,12 +264,10 @@ export default function CodeEditor() {
 
         }
 
-    }, [contents[activeFile]])
+    }, [activeFile, contents])
 
     /*
-    --------------------------------
     UI
-    --------------------------------
     */
 
     return (
@@ -266,7 +280,33 @@ export default function CodeEditor() {
             }}
         >
 
-            <Tabs />
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    borderBottom: `1px solid ${ui.border}`,
+                    background: ui.sidebarBg
+                }}
+            >
+
+                <div
+                    style={{
+                        background: editorBg,
+                        flex: 1
+                    }}
+                >
+                    <Tabs />
+                </div>
+
+                <ActionIcon
+                    variant="subtle"
+                    mr="xs"
+                    onClick={() => setSettingsOpen(true)}
+                >
+                    <Settings size={16} />
+                </ActionIcon>
+
+            </div>
 
             <div style={{ flex: 1 }}>
 
@@ -276,10 +316,10 @@ export default function CodeEditor() {
                         height="100%"
                         path={`file://${activeFile}`}
                         language={language}
-                        theme="vs-dark"
+                        theme={theme}
 
                         options={{
-                            fontSize: 14,
+                            fontSize,
                             minimap: { enabled: false },
                             automaticLayout: true,
                             quickSuggestions: true,
@@ -288,7 +328,7 @@ export default function CodeEditor() {
                         }}
 
                         onChange={(value) =>
-                            updateContent(value || "")
+                            updateContent(value ?? "")
                         }
 
                         onMount={handleEditorMount}
@@ -299,8 +339,14 @@ export default function CodeEditor() {
 
             </div>
 
+            <SettingsPanel
+                opened={settingsOpen}
+                close={() => setSettingsOpen(false)}
+            />
+
         </div>
 
     )
+
 
 }

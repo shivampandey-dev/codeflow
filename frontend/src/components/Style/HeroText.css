@@ -1,0 +1,98 @@
+.heroWrapper {
+    position: absolute;
+
+    /* PERFECT POSITION */
+    top: 33%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
+    text-align: center;
+    z-index: 15;
+    pointer-events: none;
+
+    max-width: 700px;
+}
+
+
+/* MAIN TITLE */
+
+.heroTitle {
+    font-family: "Inter", "Space Grotesk", sans-serif;
+
+    font-weight: 500;
+    font-size: 36px;
+
+    line-height: 1.1;
+    letter-spacing: -1.2px;
+
+    color: rgba(255, 255, 255, 0.92);
+
+    margin: 0;
+}
+
+
+/* GRADIENT ACCENT WORD */
+
+.heroAccent {
+    background: linear-gradient(90deg,
+            #7dd3fc,
+            #a78bfa,
+            #22d3ee);
+
+    background-size: 200% 200%;
+
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+
+    animation: gradientShift 6s ease infinite;
+}
+
+
+/* rotating subtitle */
+
+.heroDynamic {
+    margin-top: 14px;
+
+    font-family: "Inter", sans-serif;
+
+    font-weight: 500;
+    font-size: 20px;
+
+    letter-spacing: 0.2px;
+
+    color: rgba(255, 255, 255, 0.45);
+
+    transition: all .35s ease;
+}
+
+
+/* animation */
+
+.fadeIn {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.fadeOut {
+    opacity: 0;
+    transform: translateY(8px);
+}
+
+
+/* subtle gradient movement */
+
+@keyframes gradientShift {
+
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+
+}
