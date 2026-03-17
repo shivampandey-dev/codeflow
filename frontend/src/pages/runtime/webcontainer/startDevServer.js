@@ -11,67 +11,108 @@ export async function startDevServer(webcontainer, onOutput) {
     const write = (data) => onOutput?.(data);
     const decoder = new TextDecoder();
 
-    const color = {
-        reset: "\x1b[0m",
-        red: "\x1b[31m",
-        yellow: "\x1b[33m",
-        green: "\x1b[32m",
-        cyan: "\x1b[36m",
-        dim: "\x1b[2m"
-    };
+    const decode = (value) =>
+        typeof value === "string"
+            ? value
+            : decoder.decode(value);
 
-    const highlightLine = (line) => {
-        if (/error|ERR!/i.test(line)) {
-            return color.red + line + color.reset;
+    try {
+
+        write("\n🚀 Preparing workspace...\n");
+
+        /* ---------------- CREATE WORKSPACE ---------------- */
+
+        await webcontainer.fs.mkdir("/workspace").catch(() => { });
+
+        /* ---------------- MOVE ROOT FILES INTO PROJECT ---------------- */
+
+        const rootFiles = await webcontainer.fs.readdir("/");
+
+        for (const file of rootFiles) {
+
+            if (
+                file === "workspace" ||
+                file === ".git" ||
+                file === ".gitignore"
+            ) continue;
+
+            try {
+
+                await webcontainer.fs.rename(
+                    `/${file}`,
+                    `/workspace/${file}`
+                );
+
+            } catch { }
+
         }
-        if (/warn/i.test(line)) {
-            return color.yellow + line + color.reset;
-        }
-        return line;
-    };
 
-    /* ---------------- START SHELL ---------------- */
+        /* ---------------- INSTALL DEPENDENCIES ---------------- */
 
-    write("__STATUS__:starting_shell\n");
-    write(`${color.cyan}\r\n🚀 Starting interactive shell...${color.reset}\r\n`);
+        write("\n📦 Installing dependencies...\n");
 
-    devProcessInstance = await webcontainer.spawn("jsh", {
-        terminal: { cols: 80, rows: 24 }
-    });
+        const installProcess = await webcontainer.spawn(
+            "npm",
+            ["install"],
+            { cwd: "/workspace" }
+        );
 
-    const reader = devProcessInstance.output.getReader();
-    const writer = devProcessInstance.input.getWriter();
+        const reader = installProcess.output.getReader();
 
-    /* Stream output */
-    (async () => {
         while (true) {
+
             const { value, done } = await reader.read();
             if (done) break;
 
-            if (value) {
-                const text = typeof value === "string"
-                    ? value
-                    : decoder.decode(value);
+            if (value) write(decode(value));
 
-                const lines = text.split("\n").map(highlightLine).join("\n");
-                write(lines);
-
-                /* Detect Vite Ready */
-                if (/Local:\s+http/i.test(text) || /ready in/i.test(text)) {
-                    write("__STATUS__:server_ready\n");
-                    write(`\r\n${color.green}🟢 Server Running Successfully!${color.reset}\r\n`);
-                }
-            }
         }
-    })();
 
-    write("__STATUS__:installing_deps\n");
-    write(`\r\n${color.cyan}📦 Installing dependencies...${color.reset}\r\n`);
-    write(`${color.dim}Running npm install && npm run dev${color.reset}\r\n\n`);
+        await installProcess.exit;
 
-    await writer.write(" npm install --loglevel verbose && npm run dev\n");
+        /* ---------------- START DEV SERVER ---------------- */
 
-    writer.releaseLock();
+        write("\n🚀 Starting dev server...\n");
+
+        devProcessInstance = await webcontainer.spawn(
+            "npm",
+            ["run", "dev"],
+            { cwd: "/workspace" }
+        );
+
+        const devReader = devProcessInstance.output.getReader();
+
+        (async () => {
+
+            while (true) {
+
+                const { value, done } = await devReader.read();
+                if (done) break;
+
+                if (value) {
+
+                    const text = decode(value);
+
+                    write(text);
+
+                    if (/Local:\s+http/i.test(text) || /ready in/i.test(text)) {
+
+                        write("\n🟢 Dev Server Ready!\n");
+
+                    }
+
+                }
+
+            }
+
+        })();
+
+    } catch (err) {
+
+        write(`\n❌ Error starting dev server:\n${err}\n`);
+
+    }
+
     installing = false;
 
     return devProcessInstance;

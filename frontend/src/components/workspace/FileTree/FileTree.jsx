@@ -16,7 +16,7 @@ export default function FileTree({ webcontainer, logs }) {
     const [ready, setReady] = useState(false)
     const [menu, setMenu] = useState(null)
 
-    const { openFile, activeFile } = useEditorStore()
+    const { openFile } = useEditorStore()
 
     const {
         themeData,
@@ -27,7 +27,14 @@ export default function FileTree({ webcontainer, logs }) {
         themeData?.colors?.["editor.background"] || "#1e1e1e"
 
     const ui = deriveUIColors(editorBg)
+
     const defaultOpened = useRef(false)
+
+    /*
+    =========================
+    REFRESH TREE
+    =========================
+    */
 
     async function refresh() {
 
@@ -35,9 +42,16 @@ export default function FileTree({ webcontainer, logs }) {
 
         try {
 
-            const data = await scanTree(webcontainer)
+            const children = await scanTree(webcontainer, "/workspace")
 
-            setTree(data)
+            setTree([
+                {
+                    name: "workspace",
+                    path: "/workspace",
+                    type: "folder",
+                    children
+                }
+            ])
 
         } catch (err) {
 
@@ -47,16 +61,53 @@ export default function FileTree({ webcontainer, logs }) {
 
     }
 
+    /*
+    INITIAL LOAD
+    */
+
     useEffect(() => {
+
+        if (!webcontainer) return
+
         refresh()
+
     }, [webcontainer])
 
 
+    /*
+    WATCH FILESYSTEM CHANGES
+    */
+
+    useEffect(() => {
+
+        if (!webcontainer) return
+
+        let timer
+
+        const watcher = webcontainer.fs.watch("/workspace", () => {
+
+            clearTimeout(timer)
+
+            timer = setTimeout(() => {
+                refresh()
+            }, 200)
+
+        })
+
+        const interval = setInterval(refresh, 2000)
+
+        return () => {
+
+            watcher.close()
+            clearInterval(interval)
+
+        }
+
+    }, [webcontainer])
+
 
     /*
-    =========================
     PROJECT READY
-    =========================
     */
 
     useEffect(() => {
@@ -64,19 +115,14 @@ export default function FileTree({ webcontainer, logs }) {
         if (!logs) return
 
         if (logs.includes("Mounting")) {
-
             setReady(true)
-
         }
 
     }, [logs])
 
 
-
     /*
-    =========================
     CONTEXT MENU
-    =========================
     */
 
     useEffect(() => {
@@ -93,7 +139,6 @@ export default function FileTree({ webcontainer, logs }) {
     }, [])
 
 
-
     useEffect(() => {
 
         function closeMenu() {
@@ -108,11 +153,8 @@ export default function FileTree({ webcontainer, logs }) {
     }, [])
 
 
-
     /*
-    =========================
     AUTO OPEN DEFAULT FILE
-    =========================
     */
 
     function findFirstFile(nodes) {
@@ -133,19 +175,17 @@ export default function FileTree({ webcontainer, logs }) {
 
     }
 
-
-
     useEffect(() => {
 
         if (defaultOpened.current) return
         if (!tree.length) return
-        if (!webcontainer) return
 
         function findApp(nodes) {
 
             for (const node of nodes) {
 
-                if (node.path === "/src/App.jsx") return node
+                if (node.path === "/workspace/src/App.jsx")
+                    return node
 
                 if (node.children) {
 
@@ -167,14 +207,11 @@ export default function FileTree({ webcontainer, logs }) {
 
         defaultOpened.current = true
 
-    }, [tree, webcontainer])
-
+    }, [tree])
 
 
     /*
-    =========================
     FILTER HIDDEN FILES
-    =========================
     */
 
     function filterNodes(nodes) {
@@ -193,11 +230,8 @@ export default function FileTree({ webcontainer, logs }) {
     const filteredTree = filterNodes(tree)
 
 
-
     /*
-    =========================
     UI
-    =========================
     */
 
     return (
@@ -233,7 +267,6 @@ export default function FileTree({ webcontainer, logs }) {
                 ))}
 
             </ScrollArea>
-
 
             {menu && (
 

@@ -7,8 +7,6 @@ import {
     MoreHorizontal
 } from "lucide-react"
 
-import { createFile, createFolder } from "../FileTree/fsOperations"
-
 import { useSettingsStore } from "../../../store/settingsStore"
 import { useEditorStore } from "../../../store/editorStore"
 import { deriveUIColors } from "../../../utils/themeColors"
@@ -26,15 +24,14 @@ const tooltipProps = {
 }
 
 export default function FileTreeHeader({
-    refresh,
-    webcontainer
+    refresh
 }) {
 
     const [rotating, setRotating] = useState(false)
 
     const { themeData } = useSettingsStore()
 
-    const { activeFile } = useEditorStore()
+    const { activeFile, startCreate } = useEditorStore()
 
     const editorBg =
         themeData?.colors?.["editor.background"] || "#1e1e1e"
@@ -47,32 +44,30 @@ export default function FileTreeHeader({
 
     function getTargetDir() {
 
-        if (!activeFile) return "/"
+        if (!activeFile) return "/workspace"
 
-        if (activeFile.includes(".")) {
-            return activeFile.split("/").slice(0, -1).join("/")
+        // if clicked item is folder
+        if (!activeFile.split("/").pop().includes(".")) {
+            return activeFile
         }
+        // if clicked item is file → return parent folder
+        const lastSlash = activeFile.lastIndexOf("/")
 
-        return activeFile
+        if (lastSlash === -1) return "/workspace"
+
+        return activeFile.substring(0, lastSlash)
+
     }
 
     /*
     NEW FILE
     */
 
-    async function handleNewFile() {
-
-        const name = prompt("File name")
-
-        if (!name) return
+    function handleNewFile() {
 
         const dir = getTargetDir()
 
-        const path = `${dir}/${name}`
-
-        await createFile(webcontainer, path)
-
-        refresh()
+        startCreate("file", dir)
 
     }
 
@@ -80,19 +75,11 @@ export default function FileTreeHeader({
     NEW FOLDER
     */
 
-    async function handleNewFolder() {
-
-        const name = prompt("Folder name")
-
-        if (!name) return
+    function handleNewFolder() {
 
         const dir = getTargetDir()
 
-        const path = `${dir}/${name}`
-
-        await createFolder(webcontainer, path)
-
-        refresh()
+        startCreate("folder", dir)
 
     }
 

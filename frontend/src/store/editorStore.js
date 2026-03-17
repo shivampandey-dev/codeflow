@@ -18,6 +18,20 @@ export const useEditorStore = create((set, get) => ({
     /*
     OPEN FILE
     */
+    activeFile: null,
+
+    creating: null,
+    // { type: "file" | "folder", dir: "/src" }
+
+    startCreate: (type, dir) =>
+        set({
+            creating: { type, dir }
+        }),
+
+    stopCreate: () =>
+        set({
+            creating: null
+        }),
 
     openFile: async (path) => {
 

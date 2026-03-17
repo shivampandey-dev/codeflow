@@ -16,16 +16,19 @@ export default function TreeNode({
     refresh
 }) {
 
-    const [open, setOpen] = useState(false)
+    const [open, setOpen] = useState(node.path === "/workspace")
     const [renaming, setRenaming] = useState(false)
     const [name, setName] = useState(node.name)
+    const [creatingName, setCreatingName] = useState("")
 
     const inputRef = useRef(null)
 
     const {
         openFile,
         activeFile,
-        getFileStatus
+        getFileStatus,
+        creating,
+        stopCreate
     } = useEditorStore()
 
     const status = getFileStatus(node.path)
@@ -51,6 +54,29 @@ export default function TreeNode({
 
     const guideColor = deriveTreeGuide(editorBg, editorFg)
 
+    const isActive = activeFile === node.path
+
+    /*
+    =========================
+    AUTO OPEN WHEN CREATING
+    =========================
+    */
+
+    useEffect(() => {
+
+        if (creating?.dir === node.path) {
+            setOpen(true)
+        }
+
+    }, [creating, node.path])
+
+
+    /*
+    =========================
+    FILE COLOR (GIT STATUS)
+    =========================
+    */
+
     function getFileColor() {
 
         if (!status) return editorFg
@@ -63,6 +89,12 @@ export default function TreeNode({
 
         return editorFg
     }
+
+    /*
+    =========================
+    RENAME LISTENER
+    =========================
+    */
 
     useEffect(() => {
 
@@ -89,6 +121,12 @@ export default function TreeNode({
     }, [node.path])
 
 
+    /*
+    =========================
+    RENAME FILE
+    =========================
+    */
+
     async function handleRename() {
 
         if (name === node.name) {
@@ -110,18 +148,71 @@ export default function TreeNode({
         } catch (err) {
 
             console.error("Rename failed", err)
-
             setRenaming(false)
 
         }
 
     }
 
+
+    /*
+    =========================
+    CREATE FILE / FOLDER
+    =========================
+    */
+
+    async function handleCreate(e) {
+
+        if (e.key === "Enter") {
+
+            if (!creatingName) return
+
+            const path = `${node.path}/${creatingName}`
+
+            try {
+
+                if (creating.type === "file") {
+                    await webcontainer.fs.writeFile(path, "")
+                } else {
+                    await webcontainer.fs.mkdir(path)
+                }
+
+                setCreatingName("")
+                stopCreate()
+                refresh()
+
+            } catch (err) {
+
+                console.error("Create failed", err)
+
+            }
+
+        }
+
+        if (e.key === "Escape") {
+
+            stopCreate()
+            setCreatingName("")
+
+        }
+
+    }
+
+
+    /*
+    =========================
+    OPEN / TOGGLE
+    =========================
+    */
+
     function toggle() {
 
         if (isFolder) {
 
             setOpen(!open)
+
+            // set folder as active
+            openFile(node.path)
 
         } else {
 
@@ -130,6 +221,12 @@ export default function TreeNode({
         }
 
     }
+
+    /*
+    =========================
+    CONTEXT MENU
+    =========================
+    */
 
     function handleRightClick(e) {
 
@@ -147,7 +244,12 @@ export default function TreeNode({
 
     }
 
-    const isActive = activeFile === node.path
+
+    /*
+    =========================
+    UI
+    =========================
+    */
 
     return (
 
@@ -208,7 +310,6 @@ export default function TreeNode({
                             if (e.key === "Escape") {
 
                                 setName(node.name)
-
                                 setRenaming(false)
 
                             }
@@ -271,7 +372,7 @@ export default function TreeNode({
             </Group>
 
 
-            {isFolder && open && node.children && (
+            {isFolder && open && (
 
                 <div
                     style={{
@@ -281,7 +382,7 @@ export default function TreeNode({
                     }}
                 >
 
-                    {node.children.map(child => (
+                    {node.children?.map(child => (
 
                         <TreeNode
                             key={child.path}
@@ -292,6 +393,34 @@ export default function TreeNode({
                         />
 
                     ))}
+
+                    {creating?.dir === node.path && (
+
+                        <input
+                            autoFocus
+                            value={creatingName}
+                            onChange={(e) => setCreatingName(e.target.value)}
+                            onKeyDown={handleCreate}
+
+                            placeholder={
+                                creating.type === "file"
+                                    ? "File name"
+                                    : "Folder name"
+                            }
+
+                            style={{
+                                fontSize: fileTreeFontSize,
+                                background: ui.sidebarBg,
+                                border: `1px solid ${ui.border}`,
+                                color: editorFg,
+                                outline: "none",
+                                padding: "2px 4px",
+                                borderRadius: 3,
+                                marginTop: 4
+                            }}
+                        />
+
+                    )}
 
                 </div>
 

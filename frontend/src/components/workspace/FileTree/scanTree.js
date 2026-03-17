@@ -1,17 +1,28 @@
-export async function scanTree(webcontainer, path = "/") {
+export async function scanTree(webcontainer, path = "/workspace") {
 
-    const entries = await webcontainer.fs.readdir(
-        path,
-        { withFileTypes: true }
-    )
+    let entries = []
+
+    try {
+
+        entries = await webcontainer.fs.readdir(
+            path,
+            { withFileTypes: true }
+        )
+
+    } catch {
+        return []
+    }
 
     const tree = []
 
     for (const entry of entries) {
 
+        // skip node_modules for performance
+        if (entry.name === "node_modules") continue
+
         const fullPath =
-            path === "/"
-                ? `/${entry.name}`
+            path === "/workspace"
+                ? `/workspace/${entry.name}`
                 : `${path}/${entry.name}`
 
         if (entry.isDirectory()) {
@@ -36,4 +47,5 @@ export async function scanTree(webcontainer, path = "/") {
     }
 
     return tree
+
 }
