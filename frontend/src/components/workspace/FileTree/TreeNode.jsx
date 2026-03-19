@@ -47,6 +47,12 @@ export default function TreeNode({
     const editorFg =
         themeData?.colors?.["editor.foreground"] || "#d4d4d4"
 
+    const activeBg =
+        themeData?.colors?.["list.activeSelectionBackground"]
+
+    const hoverBg =
+        themeData?.colors?.["list.hoverBackground"]
+
     const ui = deriveUIColors(editorBg)
 
     const icon = resolveIcon(node.name, node.type)
@@ -69,6 +75,9 @@ export default function TreeNode({
     const parentPath = selectedIsFile
         ? selectedPath.substring(0, selectedPath.lastIndexOf("/"))
         : selectedPath
+
+    const sidebarFg =
+        themeData?.colors?.["sideBar.foreground"] || editorFg
 
     const isActive = parentPath === node.path
 
@@ -134,6 +143,9 @@ export default function TreeNode({
                 if (creating.type === "file") {
 
                     await webcontainer.fs.writeFile(path, "")
+
+                    const { registerNewFile } = useEditorStore.getState()
+                    registerNewFile(path)
 
                 } else {
 
@@ -234,7 +246,7 @@ export default function TreeNode({
                     userSelect: "none",
                     borderRadius: 4,
                     backgroundColor: isActive
-                        ? ui.activeBg || "#2a2d2e"
+                        ? activeBg || ui.activeBg
                         : "transparent"
                 }}
 
@@ -343,7 +355,7 @@ export default function TreeNode({
                                 fontSize: fileTreeFontSize,
                                 background: ui.sidebarBg,
                                 border: `1px solid ${ui.border}`,
-                                color: editorFg,
+                                color: sidebarFg,
                                 outline: "none",
                                 padding: "2px 4px",
                                 borderRadius: 3,

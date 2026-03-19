@@ -108,7 +108,7 @@ export default function FileTreeHeader({
         <Group
             justify="space-between"
             style={{
-                padding: "6px 8px",
+                padding: "3px 8px",
                 borderBottom: `1px solid ${ui.border}`,
                 background: ui.panelBg
             }}

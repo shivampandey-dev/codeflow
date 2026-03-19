@@ -16,7 +16,7 @@ const baseHtml = (entry) => `
         display: flex;
         align-items: center;
         justify-content: center;
-        background: radial-gradient(circle at top, #0b1220, #020617);
+       background: #1e1e1e;
         color: #e2e8f0;
         font-family: Inter, system-ui, sans-serif;
       }
@@ -119,6 +119,7 @@ export default function App() {
     <div>
       <h1>Codeflow React</h1>
       <p>React + Vite running inside your browser</p>
+  
       <button>Start Building</button>
     </div>
   );
@@ -266,7 +267,6 @@ const templates = {
     javascript: vanillaTemplate,
     typescript: tsTemplate,
 };
-
 export async function mountTemplate(webcontainer, templateId) {
 
     const files = templates[templateId];
@@ -275,14 +275,16 @@ export async function mountTemplate(webcontainer, templateId) {
         throw new Error(`Unknown template: ${templateId}`);
     }
 
-    // create workspace folder
+    // 🔥 REMOVE OLD FILES (IMPORTANT)
+    // await webcontainer.fs.rm("/workspace", { recursive: true, force: true }).catch(() => { });
+
+    // recreate workspace
     await webcontainer.fs.mkdir("/workspace").catch(() => { });
 
-    // mount template INSIDE workspace
+    // mount fresh template
     await webcontainer.mount({
         workspace: {
             directory: files
         }
     });
-
 }

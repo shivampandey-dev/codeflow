@@ -355,10 +355,12 @@ function TerminalInstance({
 
         if (newData) {
 
-            term.write(newData)
+            // ❌ remove status logs from terminal
+            const cleanData = newData.replace(/__STATUS__:[a-z_]+\r?\n?/g, "");
+
+            term.write(cleanData)
 
             lastIndexRef.current = logs.length
-
         }
 
     }, [logs])

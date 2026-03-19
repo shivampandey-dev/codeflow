@@ -1,9 +1,10 @@
+
 import Editor, { useMonaco } from "@monaco-editor/react"
 import { useEditorStore } from "../../../store/editorStore"
 import { getLanguage } from "./languageMap"
 import Tabs from "./Tabs"
 import SettingsPanel from "./SettingsPanel"
-
+import image from "../../../Assets/logo.png";
 import { useSettingsStore } from "../../../store/settingsStore"
 import { loadMonacoTheme } from "../../../utils/loadTheme"
 import { deriveUIColors } from "../../../utils/themeColors"
@@ -310,7 +311,39 @@ export default function CodeEditor() {
 
             <div style={{ flex: 1 }}>
 
-                {activeFile && (
+                {!activeFile ? (
+
+                    /* 🔥 VS CODE STYLE EMPTY SCREEN */
+                    <div
+                        style={{
+                            height: "100%",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            background: editorBg,
+                            position: "relative",
+                            overflow: "hidden"
+                        }}
+                    >
+
+                        {/* Background VS Code Logo */}
+                        <img
+                            src={image}
+                            style={{
+                                position: "absolute",
+                                width: 520,          // slightly bigger
+
+                                opacity: 0.08,       // 🔥 more visible (sweet spot)
+                                filter: "blur(1.5px) brightness(1.1)",  // 🔥 soft + slightly brighter
+
+                                pointerEvents: "none"
+                            }}
+                        />
+
+
+                    </div>
+
+                ) : (
 
                     <Editor
                         height="100%"
@@ -347,6 +380,5 @@ export default function CodeEditor() {
         </div>
 
     )
-
-
 }
+

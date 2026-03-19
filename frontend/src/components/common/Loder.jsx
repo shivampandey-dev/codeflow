@@ -159,7 +159,7 @@ const styles = {
         flexDirection: "column",
         justifyContent: "center",
         alignItems: "center",
-        background: "#020617"
+        background: "#1e1e1e",
     }
 };
 

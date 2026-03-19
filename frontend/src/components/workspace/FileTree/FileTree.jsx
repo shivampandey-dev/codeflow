@@ -5,20 +5,21 @@ import FileTreeHeader from "./FileTreeHeader"
 
 import { useFileTreeStore } from "../../../store/fileTreeStore"
 import { useEditorStore } from "../../../store/editorStore"
-
+import { useSettingsStore } from "../../../store/settingsStore"
 export default function FileTree({ webcontainer }) {
 
     const { tree, setTree } = useFileTreeStore()
     const { startCreate } = useEditorStore()
+    const { themeData } = useSettingsStore()
+    const sidebarBg =
+        themeData?.colors?.["sideBar.background"] || "#1e1e1e"
+    const menuBg =
+        themeData?.colors?.["menu.background"] || "#1e1e1e"
+
+    const menuBorder =
+        themeData?.colors?.["menu.border"] || "#333"
 
     const [menu, setMenu] = useState(null)
-
-    /*
-    =========================
-    REFRESH TREE
-    =========================
-    */
-
     async function refresh() {
 
         if (!webcontainer) return
@@ -215,7 +216,13 @@ export default function FileTree({ webcontainer }) {
 
     return (
 
-        <div style={{ position: "relative", height: "100%" }}>
+        <div
+            style={{
+                position: "relative",
+                height: "100%",
+                background: sidebarBg   // ✅ THIS FIXES IT
+            }}
+        >
 
             <FileTreeHeader refresh={refresh} />
 
@@ -239,8 +246,8 @@ export default function FileTree({ webcontainer }) {
                         position: "fixed",
                         top: menu.y,
                         left: menu.x,
-                        background: "#1e1e1e",
-                        border: "1px solid #333",
+                        background: menuBg,
+                        border: `1px solid ${menuBorder}`,
                         borderRadius: 6,
                         padding: "4px 0",
                         zIndex: 999,

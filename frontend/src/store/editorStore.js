@@ -9,6 +9,8 @@ export const useEditorStore = create((set, get) => ({
     originalContents: {},
     dirty: {},
 
+    newFiles: {},
+
     webcontainer: null,
 
     setWebcontainer: (wc) => {
@@ -16,12 +18,10 @@ export const useEditorStore = create((set, get) => ({
     },
 
     /*
-    OPEN FILE
+    CREATE MODE
     */
-    activeFile: null,
 
     creating: null,
-    // { type: "file" | "folder", dir: "/src" }
 
     startCreate: (type, dir) =>
         set({
@@ -32,6 +32,27 @@ export const useEditorStore = create((set, get) => ({
         set({
             creating: null
         }),
+
+    /*
+    REGISTER NEW FILE
+    */
+
+    registerNewFile: (path) => {
+
+        const { newFiles } = get()
+
+        set({
+            newFiles: {
+                ...newFiles,
+                [path]: true
+            }
+        })
+
+    },
+
+    /*
+    OPEN FILE
+    */
 
     openFile: async (path) => {
 
@@ -80,6 +101,7 @@ export const useEditorStore = create((set, get) => ({
             }
 
         }))
+
     },
 
     /*
@@ -100,7 +122,7 @@ export const useEditorStore = create((set, get) => ({
         const safeValue = value ?? ""
 
         const isDirty =
-            safeValue !== originalContents[activeFile]
+            safeValue !== (originalContents[activeFile] ?? "")
 
         set({
 
@@ -115,6 +137,7 @@ export const useEditorStore = create((set, get) => ({
             }
 
         })
+
     },
 
     /*
@@ -128,7 +151,8 @@ export const useEditorStore = create((set, get) => ({
             contents,
             originalContents,
             dirty,
-            webcontainer
+            webcontainer,
+            newFiles
         } = get()
 
         if (!activeFile || !webcontainer) return
@@ -136,6 +160,9 @@ export const useEditorStore = create((set, get) => ({
         const content = contents[activeFile] ?? ""
 
         await webcontainer.fs.writeFile(activeFile, content)
+
+        const updatedNew = { ...newFiles }
+        delete updatedNew[activeFile]
 
         set({
 
@@ -147,9 +174,12 @@ export const useEditorStore = create((set, get) => ({
             dirty: {
                 ...dirty,
                 [activeFile]: false
-            }
+            },
+
+            newFiles: updatedNew
 
         })
+
     },
 
     /*
@@ -163,6 +193,7 @@ export const useEditorStore = create((set, get) => ({
             contents,
             originalContents,
             dirty,
+            newFiles,
             activeFile
         } = get()
 
@@ -172,6 +203,7 @@ export const useEditorStore = create((set, get) => ({
         const newContents = { ...contents }
         const newOriginal = { ...originalContents }
         const newDirty = { ...dirty }
+        const newNewFiles = { ...newFiles }
 
         if (contents[oldPath] !== undefined) {
             newContents[newPath] = contents[oldPath]
@@ -188,6 +220,11 @@ export const useEditorStore = create((set, get) => ({
             delete newDirty[oldPath]
         }
 
+        if (newFiles[oldPath] !== undefined) {
+            newNewFiles[newPath] = newFiles[oldPath]
+            delete newNewFiles[oldPath]
+        }
+
         set({
 
             tabs: newTabs,
@@ -199,7 +236,8 @@ export const useEditorStore = create((set, get) => ({
 
             contents: newContents,
             originalContents: newOriginal,
-            dirty: newDirty
+            dirty: newDirty,
+            newFiles: newNewFiles
 
         })
 
@@ -209,10 +247,6 @@ export const useEditorStore = create((set, get) => ({
     CLOSE TAB
     */
 
-    /*
-   CLOSE TAB
-   */
-
     closeFile: (path) => {
 
         const {
@@ -220,7 +254,8 @@ export const useEditorStore = create((set, get) => ({
             activeFile,
             contents,
             originalContents,
-            dirty
+            dirty,
+            newFiles
         } = get()
 
         const newTabs = tabs.filter(t => t !== path)
@@ -228,10 +263,12 @@ export const useEditorStore = create((set, get) => ({
         const newContents = { ...contents }
         const newOriginal = { ...originalContents }
         const newDirty = { ...dirty }
+        const newNewFiles = { ...newFiles }
 
         delete newContents[path]
         delete newOriginal[path]
         delete newDirty[path]
+        delete newNewFiles[path]
 
         set({
 
@@ -240,6 +277,7 @@ export const useEditorStore = create((set, get) => ({
             contents: newContents,
             originalContents: newOriginal,
             dirty: newDirty,
+            newFiles: newNewFiles,
 
             activeFile:
                 activeFile === path
@@ -249,6 +287,7 @@ export const useEditorStore = create((set, get) => ({
         })
 
     },
+
     /*
     REORDER TABS
     */
@@ -268,19 +307,19 @@ export const useEditorStore = create((set, get) => ({
     },
 
     /*
-    FILE STATUS FOR FILETREE
+    FILE STATUS (U / M)
     */
 
     getFileStatus: (path) => {
 
-        const { dirty, originalContents } = get()
+        const { dirty, newFiles } = get()
 
         if (dirty[path]) return "M"
 
-        if (originalContents[path] === undefined)
-            return "U"
+        if (newFiles[path]) return "U"
 
         return null
+
     }
 
 }))

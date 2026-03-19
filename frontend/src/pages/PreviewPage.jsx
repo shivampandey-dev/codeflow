@@ -3,9 +3,7 @@ import { Allotment } from "allotment";
 import "allotment/dist/style.css";
 
 import {
-    Monitor,
-    Smartphone,
-    Tablet,
+
     RotateCw,
     ZoomIn,
     ZoomOut,
