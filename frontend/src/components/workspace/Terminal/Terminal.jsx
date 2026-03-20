@@ -17,28 +17,14 @@ import {
 import { useSettingsStore } from "../../../store/settingsStore"
 import { deriveUIColors } from "../../../utils/themeColors"
 
-const presetColors = [
-    "#22c55e",
-    "#38bdf8",
-    "#f97316",
-    "#a855f7",
-    "#e11d48",
-    "#facc15"
-]
+/* ================= MAIN ================= */
 
-export default function Terminal({
-    process,
-    logs,
-    webcontainer
-}) {
+export default function Terminal({ process, logs, webcontainer }) {
 
     const { themeData } = useSettingsStore()
 
-    const editorBg =
-        themeData?.colors?.["editor.background"] || "#1e1e1e"
-
-    const editorFg =
-        themeData?.colors?.["editor.foreground"] || "#e2e8f0"
+    const editorBg = themeData?.colors?.["editor.background"] || "#1e1e1e"
+    const editorFg = themeData?.colors?.["editor.foreground"] || "#e2e8f0"
 
     const ui = deriveUIColors(editorBg)
 
@@ -52,51 +38,9 @@ export default function Terminal({
     ])
 
     const [activeIndex, setActiveIndex] = useState(0)
-    const [renameModal, setRenameModal] = useState(null)
     const [fullscreen, setFullscreen] = useState(false)
 
     const isMobile = useMediaQuery("(max-width:768px)")
-
-    /* SPLIT TERMINAL */
-
-    const addSplit = () => {
-
-        setTerms(prev => [
-            ...prev,
-            {
-                id: crypto.randomUUID(),
-                type: "shell",
-                name: "bash",
-                color: "#38bdf8"
-            }
-        ])
-
-        setActiveIndex(terms.length)
-    }
-
-    const deleteTerminal = () => {
-
-        if (terms.length === 1) return
-
-        setTerms(prev =>
-            prev.filter((_, i) => i !== activeIndex)
-        )
-
-        setActiveIndex(0)
-    }
-
-    const saveRename = (name, color) => {
-
-        setTerms(prev =>
-            prev.map((t, i) =>
-                i === renameModal.index
-                    ? { ...t, name, color }
-                    : t
-            )
-        )
-
-        setRenameModal(null)
-    }
 
     const buttonStyle = {
         background: "none",
@@ -108,43 +52,35 @@ export default function Terminal({
         color: editorFg
     }
 
+    const addSplit = () => {
+        setTerms(prev => [
+            ...prev,
+            {
+                id: crypto.randomUUID(),
+                type: "shell",
+                name: "bash",
+                color: "#38bdf8"
+            }
+        ])
+        setActiveIndex(terms.length)
+    }
+
+    const deleteTerminal = () => {
+        if (terms.length === 1) return
+        setTerms(prev => prev.filter((_, i) => i !== activeIndex))
+        setActiveIndex(0)
+    }
+
     return (
+        <div style={{ height: "100%", display: "flex", flexDirection: "column", background: ui.sidebarBg }}>
 
-        <div
-            style={{
-                height: "100%",
-                display: "flex",
-                flexDirection: "column",
-                background: ui.sidebarBg
-            }}
-        >
-
-            {/* TERMINAL TABS */}
-
-            <div
-                style={{
-                    display: "flex",
-                    borderBottom: `1px solid ${ui.border}`,
-                    minHeight: 30
-                }}
-            >
-
-                <div
-                    style={{
-                        flex: 1,
-                        overflowX: "auto",
-                        display: "flex"
-                    }}
-                >
-
+            {/* TABS */}
+            <div style={{ display: "flex", borderBottom: `1px solid ${ui.border}` }}>
+                <div style={{ flex: 1, display: "flex", overflowX: "auto" }}>
                     {terms.map((term, i) => (
-
                         <div
                             key={term.id}
                             onClick={() => setActiveIndex(i)}
-                            onDoubleClick={() =>
-                                setRenameModal({ ...term, index: i })
-                            }
                             style={{
                                 minWidth: 130,
                                 padding: "4px 10px",
@@ -153,83 +89,39 @@ export default function Terminal({
                                 display: "flex",
                                 alignItems: "center",
                                 gap: 6,
-                                borderBottom:
-                                    activeIndex === i
-                                        ? `2px solid ${term.color}`
-                                        : "2px solid transparent",
+                                borderBottom: activeIndex === i ? `2px solid ${term.color}` : "transparent",
                                 color: editorFg
                             }}
                         >
-
                             <TerminalIcon size={14} color={term.color} />
-
-                            <span
-                                style={{
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis"
-                                }}
-                            >
-                                {term.name}
-                            </span>
-
+                            {term.name}
                         </div>
-
                     ))}
-
                 </div>
 
                 {/* TOOLBAR */}
-
-                <div
-                    style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
-                        borderLeft: `1px solid ${ui.border}`,
-                        paddingLeft: 6
-                    }}
-                >
-
-                    <button
-                        onClick={() => setFullscreen(!fullscreen)}
-                        style={buttonStyle}
-                    >
-                        {fullscreen
-                            ? <Minimize size={16} />
-                            : <Expand size={16} />}
+                <div style={{ display: "flex", gap: 4 }}>
+                    <button onClick={() => setFullscreen(!fullscreen)} style={buttonStyle}>
+                        {fullscreen ? <Minimize size={16} /> : <Expand size={16} />}
                     </button>
-
-                    <button
-                        onClick={addSplit}
-                        style={buttonStyle}
-                    >
+                    <button onClick={addSplit} style={buttonStyle}>
                         <SquareSplitHorizontal size={16} />
                     </button>
-
                     {terms.length > 1 && (
-                        <button
-                            onClick={deleteTerminal}
-                            style={buttonStyle}
-                        >
+                        <button onClick={deleteTerminal} style={buttonStyle}>
                             <Trash2 size={16} />
                         </button>
                     )}
-
                 </div>
-
             </div>
 
-            {/* TERMINAL PANES */}
-
-            {isMobile ? (
-
+            {/* TERMINAL AREA */}
+            {fullscreen || isMobile ? (
                 <div style={{ flex: 1 }}>
-
                     {terms.map((term, idx) => (
-
                         <TerminalInstance
                             key={term.id}
-                            type={term.type}
+                            {...term}
                             process={process}
                             logs={logs}
                             webcontainer={webcontainer}
@@ -237,21 +129,14 @@ export default function Terminal({
                             editorBg={editorBg}
                             editorFg={editorFg}
                         />
-
                     ))}
-
                 </div>
-
             ) : (
-
-                <Allotment key={terms.length}>
-
+                <Allotment>
                     {terms.map((term, idx) => (
-
                         <Allotment.Pane key={term.id}>
-
                             <TerminalInstance
-                                type={term.type}
+                                {...term}
                                 process={process}
                                 logs={logs}
                                 webcontainer={webcontainer}
@@ -259,29 +144,15 @@ export default function Terminal({
                                 editorBg={editorBg}
                                 editorFg={editorFg}
                             />
-
                         </Allotment.Pane>
-
                     ))}
-
                 </Allotment>
-
             )}
-
-            {renameModal && (
-                <RenameModal
-                    data={renameModal}
-                    onSave={saveRename}
-                    onClose={() => setRenameModal(null)}
-                />
-            )}
-
         </div>
     )
 }
 
-
-/* TERMINAL INSTANCE */
+/* ================= TERMINAL INSTANCE ================= */
 
 function TerminalInstance({
     type,
@@ -295,38 +166,52 @@ function TerminalInstance({
 
     const containerRef = useRef(null)
     const termRef = useRef(null)
-    const fitAddonRef = useRef(null)
-
     const lastIndexRef = useRef(0)
     const attachedRef = useRef(false)
+
+    const {
+        terminalFontSize,
+        terminalFontFamily,
+        terminalFontWeight,
+        terminalFontItalic,
+        cursorBlink,
+        scrollback,
+        lineHeight
+    } = useSettingsStore()
+
+    /* INIT */
 
     useEffect(() => {
 
         const term = new XTerm({
-            allowTransparency: true,
-            fontSize: 12,
-            cursorBlink: true,
-            scrollback: 5000,
+            fontSize: terminalFontSize,
+            fontFamily: terminalFontFamily,
+            fontWeight: terminalFontWeight,
+            fontStyle: terminalFontItalic ? "italic" : "normal",
+            lineHeight,
+            cursorBlink,
+            scrollback,
             theme: {
                 background: editorBg,
-                foreground: editorFg,
-                cursor: editorFg,
-                selectionBackground: editorFg + "33"
+                foreground: editorFg
             }
         })
 
         const fitAddon = new FitAddon()
-
         term.loadAddon(fitAddon)
 
         term.open(containerRef.current)
-
         fitAddon.fit()
 
-        term.refresh(0, term.rows)
-
         termRef.current = term
-        fitAddonRef.current = fitAddon
+
+        lastIndexRef.current = 0
+
+        // 🔥 show logs on refresh
+        if (logs) {
+            term.write(logs)
+            lastIndexRef.current = logs.length
+        }
 
         const resizeObserver = new ResizeObserver(() => {
             fitAddon.fit()
@@ -339,10 +224,19 @@ function TerminalInstance({
             term.dispose()
         }
 
-    }, [editorBg, editorFg])
+    }, [
+        terminalFontSize,
+        terminalFontFamily,
+        terminalFontWeight,
+        terminalFontItalic,
+        cursorBlink,
+        scrollback,
+        lineHeight,
+        editorBg,
+        editorFg
+    ])
 
-
-    /* MAIN TERMINAL OUTPUT */
+    /* LOG STREAM */
 
     useEffect(() => {
 
@@ -354,19 +248,13 @@ function TerminalInstance({
         const newData = logs.slice(lastIndexRef.current)
 
         if (newData) {
-
-            // ❌ remove status logs from terminal
-            const cleanData = newData.replace(/__STATUS__:[a-z_]+\r?\n?/g, "");
-
-            term.write(cleanData)
-
+            term.write(newData)
             lastIndexRef.current = logs.length
         }
 
     }, [logs])
 
-
-    /* MAIN TERMINAL INPUT */
+    /* INPUT */
 
     useEffect(() => {
 
@@ -376,29 +264,21 @@ function TerminalInstance({
 
         attachedRef.current = true
 
-        const term = termRef.current
         const writer = process.input.getWriter()
 
-        const disposable = term.onData(data => {
+        const disposable = termRef.current.onData(data => {
             writer.write(data)
         })
 
         return () => {
-
             disposable.dispose()
-
-            try {
-                writer.releaseLock()
-            } catch { }
-
+            try { writer.releaseLock() } catch { }
             attachedRef.current = false
-
         }
 
     }, [process])
 
-
-    /* SHELL TERMINAL */
+    /* SHELL */
 
     useEffect(() => {
 
@@ -410,10 +290,7 @@ function TerminalInstance({
             const term = termRef.current
 
             const shell = await webcontainer.spawn("jsh", {
-                terminal: {
-                    cols: term.cols,
-                    rows: term.rows
-                }
+                terminal: { cols: term.cols, rows: term.rows }
             })
 
             shell.output.pipeTo(
@@ -425,108 +302,19 @@ function TerminalInstance({
             )
 
             const writer = shell.input.getWriter()
-
             term.onData(data => writer.write(data))
-
         }
 
         startShell()
 
     }, [webcontainer])
 
-
     return (
-
-        <div
-            style={{
-                height: "100%",
-                border: isActive
-                    ? `2px solid ${editorFg}33`
-                    : `1px solid ${editorFg}22`
-            }}
-        >
-
-            <div
-                ref={containerRef}
-                style={{
-                    height: "100%",
-                    width: "100%"
-                }}
-            />
-
+        <div style={{
+            height: "100%",
+            border: isActive ? "2px solid #8883" : "1px solid #8882"
+        }}>
+            <div ref={containerRef} style={{ height: "100%" }} />
         </div>
-
-    )
-}
-
-
-/* RENAME MODAL */
-
-function RenameModal({ data, onSave, onClose }) {
-
-    const [name, setName] = useState(data.name)
-    const [color, setColor] = useState(data.color)
-
-    return (
-
-        <div
-            style={{
-                position: "absolute",
-                top: "35%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                background: "#020617",
-                border: "1px solid #1e293b",
-                padding: 16,
-                width: 260
-            }}
-        >
-
-            <div>Terminal Name</div>
-
-            <input
-                value={name}
-                onChange={e => setName(e.target.value)}
-                style={{
-                    width: "100%",
-                    padding: 6,
-                    marginBottom: 10
-                }}
-            />
-
-            <div style={{ display: "flex", gap: 6 }}>
-
-                {presetColors.map(c => (
-
-                    <div
-                        key={c}
-                        onClick={() => setColor(c)}
-                        style={{
-                            width: 18,
-                            height: 18,
-                            background: c,
-                            cursor: "pointer",
-                            border:
-                                color === c
-                                    ? "2px solid white"
-                                    : "none"
-                        }}
-                    />
-
-                ))}
-
-            </div>
-
-            <div style={{ marginTop: 14 }}>
-
-                <button onClick={onClose}>Cancel</button>
-                <button onClick={() => onSave(name, color)}>
-                    Save
-                </button>
-
-            </div>
-
-        </div>
-
     )
 }

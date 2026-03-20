@@ -52,6 +52,11 @@ export default function TreeNode({
 
     const hoverBg =
         themeData?.colors?.["list.hoverBackground"]
+    const {
+        fileTreeFontFamily,
+        fontWeight,
+        fontItalic
+    } = useSettingsStore()
 
     const ui = deriveUIColors(editorBg)
 
@@ -236,6 +241,7 @@ export default function TreeNode({
 
             <Group
                 gap={6}
+                className="tree-row"
                 onClick={handleClick}
                 onContextMenu={handleRightClick}
 
@@ -284,6 +290,9 @@ export default function TreeNode({
                 <Text
                     style={{
                         fontSize: fileTreeFontSize,
+                        fontFamily: fileTreeFontFamily,
+                        fontWeight: fontWeight,
+                        fontStyle: fontItalic ? "italic" : "normal",
                         color: getFileColor(),
                         overflow: "hidden",
                         textOverflow: "ellipsis",
@@ -336,33 +345,64 @@ export default function TreeNode({
 
                     {creating?.dir === node.path && (
 
-                        <input
-                            ref={inputRef}
-                            autoFocus
-                            value={creatingName}
-                            onChange={(e) =>
-                                setCreatingName(e.target.value)
-                            }
-                            onKeyDown={handleCreate}
-
-                            placeholder={
-                                creating.type === "file"
-                                    ? "File name"
-                                    : "Folder name"
-                            }
-
+                        <div
                             style={{
-                                fontSize: fileTreeFontSize,
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 4,
+                                marginTop: 4,
                                 background: ui.sidebarBg,
                                 border: `1px solid ${ui.border}`,
-                                color: sidebarFg,
-                                outline: "none",
-                                padding: "2px 4px",
                                 borderRadius: 3,
-                                marginTop: 4,
-                                width: "100%"
+                                padding: "2px 4px"
                             }}
-                        />
+                        >
+                            <input
+                                ref={inputRef}
+                                autoFocus
+                                value={creatingName}
+                                onChange={(e) =>
+                                    setCreatingName(e.target.value)
+                                }
+                                onKeyDown={handleCreate}
+                                placeholder={
+                                    creating.type === "file"
+                                        ? "File name"
+                                        : "Folder name"
+                                }
+                                style={{
+                                    flex: 1,
+                                    fontSize: fileTreeFontSize,
+                                    background: "transparent",
+                                    border: "none",
+                                    color: sidebarFg,
+                                    outline: "none"
+                                }}
+                            />
+
+                            {/* ✅ CLOSE BUTTON */}
+                            <span
+                                onClick={() => {
+                                    stopCreate()
+                                    setCreatingName("")
+                                }}
+                                style={{
+                                    cursor: "pointer",
+                                    fontSize: 12,
+                                    padding: "2px 6px",
+                                    borderRadius: 3,
+                                    color: "#aaa"
+                                }}
+                                onMouseEnter={(e) =>
+                                    (e.currentTarget.style.background = "#2a2d2e")
+                                }
+                                onMouseLeave={(e) =>
+                                    (e.currentTarget.style.background = "transparent")
+                                }
+                            >
+                                ✕
+                            </span>
+                        </div>
 
                     )}
 

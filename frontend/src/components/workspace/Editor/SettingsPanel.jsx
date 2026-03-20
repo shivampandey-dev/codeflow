@@ -8,9 +8,12 @@ import {
     Divider,
     Switch,
     Card,
-    Text,
     Group
 } from "@mantine/core"
+
+import fontJson from "../../../Assets/google-fonts.json"
+import { getFontOptions } from "../../../utils/getFontOptions"
+import { loadFont } from "../../../utils/loadFont"
 
 import {
     Palette,
@@ -24,109 +27,188 @@ import { getThemes } from "../../../utils/getThemes"
 
 const themes = getThemes()
 
+// ✅ LIMIT TO 100 FONTS
+const fontOptions = getFontOptions(fontJson).slice(0, 100)
+
+/*
+=========================
+FONT SETTINGS COMPONENT
+=========================
+*/
+
+function FontSettings({
+    fontFamily,
+    setFontFamily,
+    fontWeight,
+    setFontWeight,
+    fontItalic,
+    setFontItalic
+}) {
+
+    const fontData = fontJson?.[fontFamily]
+
+    const weightOptions = fontData?.variants?.normal
+        ? Object.keys(fontData.variants.normal).map((w) => ({
+            value: w,
+            label: w
+        }))
+        : [{ value: "400", label: "400" }]
+
+    const italicSupported = !!fontData?.variants?.italic
+
+    function safeLoadFont(name, weight, italic) {
+        const data = fontJson?.[name]
+        if (!data) return
+
+        loadFont(name, data, weight, italic ? "italic" : "normal")
+    }
+
+    return (
+        <>
+            <Select
+                label="Font Family"
+                searchable
+                value={fontFamily}
+                onChange={(value) => {
+                    setFontFamily(value)
+                    safeLoadFont(value, fontWeight, fontItalic)
+                }}
+                data={[
+                    { value: "monospace", label: "Monospace" },
+                    ...fontOptions
+                ]}
+            />
+
+            <Select
+                label="Font Weight"
+                value={fontWeight}
+                onChange={(value) => {
+                    setFontWeight(value)
+                    safeLoadFont(fontFamily, value, fontItalic)
+                }}
+                data={weightOptions}
+            />
+
+            <Switch
+                label="Italic"
+                checked={fontItalic}
+                disabled={!italicSupported}
+                onChange={(e) => {
+                    const checked = e.currentTarget.checked
+                    setFontItalic(checked)
+                    safeLoadFont(fontFamily, fontWeight, checked)
+                }}
+            />
+        </>
+    )
+}
+
+/*
+=========================
+MAIN COMPONENT
+=========================
+*/
+
 export default function SettingsPanel({ opened, close }) {
 
     const {
-        fontSize,
-        setFontSize,
+
         theme,
         setTheme,
 
-        fileTreeFontSize,
-        fileTreeIconSize,
-        showHiddenFiles,
-        compactFolders,
+        /* EDITOR */
+        editorFontFamily,
+        setEditorFontFamily,
+        editorFontWeight,
+        setEditorFontWeight,
+        editorFontItalic,
+        setEditorFontItalic,
 
+        fontSize,
+        setFontSize,
+        autoSave,
+        setAutoSave,
+        autoSaveDelay,
+        setAutoSaveDelay,
+        cursorStyle,
+        setCursorStyle,
+        wordWrap,
+        setWordWrap,
+        minimap,
+        setMinimap,
+
+        /* FILE TREE */
+        fileTreeFontFamily,
+        setFileTreeFontFamily,
+        fileTreeFontWeight,
+        setFileTreeFontWeight,
+        fileTreeFontItalic,
+        setFileTreeFontItalic,
+
+        fileTreeFontSize,
         setFileTreeFontSize,
+        fileTreeIconSize,
         setFileTreeIconSize,
+        showHiddenFiles,
         setShowHiddenFiles,
-        setCompactFolders
+        compactFolders,
+        setCompactFolders,
+
+        /* TERMINAL */
+        terminalFontFamily,
+        setTerminalFontFamily,
+        terminalFontWeight,
+        setTerminalFontWeight,
+        terminalFontItalic,
+        setTerminalFontItalic,
+
+        terminalFontSize,
+        setTerminalFontSize,
+        cursorBlink,
+        setCursorBlink,
+        scrollback,
+        setScrollback,
+        lineHeight,
+        setLineHeight
+
     } = useSettingsStore()
 
     return (
-        <Modal
-            opened={opened}
-            onClose={close}
-            title="Settings"
-            size="95%"
-            centered
-            overlayProps={{ blur: 4 }}
-            styles={{
-                body: { paddingTop: 20 },
-                title: { fontSize: 20, fontWeight: 600 }
-            }}
-        >
+        <Modal opened={opened} onClose={close} title="Settings" size="95%" centered>
 
             <Stack gap="xl">
 
-                {/* GLOBAL THEME */}
-                <Card
-                    withBorder
-                    radius="md"
-                    p="lg"
-                    style={{
-                        background: "rgba(255,255,255,0.02)",
-                        borderColor: "rgba(255,255,255,0.08)"
-                    }}
-                >
-
-                    <Stack gap="sm">
-
-                        <Group gap={6}>
-                            <Palette size={18} color="#8ab4ff" />
+                {/* THEME */}
+                <Card withBorder p="lg">
+                    <Stack>
+                        <Group>
+                            <Palette size={18} />
                             <Title order={4}>Theme</Title>
                         </Group>
 
-                        <Text size="sm" c="dimmed">
-                            Global theme applied to all components.
-                        </Text>
-
-                        <Select
-                            value={theme}
-                            onChange={setTheme}
-                            data={themes}
-                        />
-
+                        <Select value={theme} onChange={setTheme} data={themes} />
                     </Stack>
-
                 </Card>
 
                 <Divider />
 
-                {/* SETTINGS GRID */}
-                <Grid gutter="xl">
+                <Grid>
 
-                    {/* FILETREE */}
-                    {/* FILETREE */}
+                    {/* FILE TREE */}
                     <Grid.Col span={{ base: 12, md: 4 }}>
-                        <Card
-                            withBorder
-                            radius="md"
-                            p="lg"
-                            style={{
-                                background: "rgba(255,255,255,0.02)",
-                                borderColor: "rgba(255,255,255,0.08)"
-                            }}
-                        >
-                            <Stack gap="md">
-
-                                <Group gap={6}>
-                                    <FileStack size={18} color="#60a5fa" />
+                        <Card withBorder p="lg">
+                            <Stack>
+                                <Group>
+                                    <FileStack size={18} />
                                     <Title order={5}>FileTree</Title>
                                 </Group>
 
-                                <NumberInput
-                                    label="Font Size"
-                                    min={10}
-                                    max={24}
-                                    value={fileTreeFontSize}
-                                    onChange={setFileTreeFontSize}
-                                />
+                                <NumberInput label="Font Size" value={fileTreeFontSize} onChange={setFileTreeFontSize} />
 
                                 <Select
                                     label="Icon Size"
                                     value={String(fileTreeIconSize)}
-                                    onChange={(value) => setFileTreeIconSize(Number(value))}
+                                    onChange={(v) => setFileTreeIconSize(Number(v))}
                                     data={[
                                         { value: "14", label: "Small" },
                                         { value: "16", label: "Medium" },
@@ -134,80 +216,50 @@ export default function SettingsPanel({ opened, close }) {
                                     ]}
                                 />
 
-                                <Divider />
-
-                                <Switch
-                                    label="Show Hidden Files"
-                                    checked={showHiddenFiles}
-                                    onChange={(e) =>
-                                        setShowHiddenFiles(e.currentTarget.checked)
-                                    }
+                                <FontSettings
+                                    fontFamily={fileTreeFontFamily}
+                                    setFontFamily={setFileTreeFontFamily}
+                                    fontWeight={fileTreeFontWeight}
+                                    setFontWeight={setFileTreeFontWeight}
+                                    fontItalic={fileTreeFontItalic}
+                                    setFontItalic={setFileTreeFontItalic}
                                 />
 
-                                <Switch
-                                    label="Compact Folders"
-                                    checked={compactFolders}
-                                    onChange={(e) =>
-                                        setCompactFolders(e.currentTarget.checked)
-                                    }
-                                />
-
+                                <Switch label="Show Hidden Files" checked={showHiddenFiles} onChange={(e) => setShowHiddenFiles(e.currentTarget.checked)} />
+                                <Switch label="Compact Folders" checked={compactFolders} onChange={(e) => setCompactFolders(e.currentTarget.checked)} />
                             </Stack>
                         </Card>
                     </Grid.Col>
 
-
                     {/* EDITOR */}
                     <Grid.Col span={{ base: 12, md: 4 }}>
-                        <Card
-                            withBorder
-                            radius="md"
-                            p="lg"
-                            style={{
-                                background: "rgba(255,255,255,0.02)",
-                                borderColor: "rgba(255,255,255,0.08)"
-                            }}
-                        >
-
-                            <Stack gap="md">
-
-                                <Group gap={6}>
-                                    <Pencil size={18} color="#a78bfa" />
+                        <Card withBorder p="lg">
+                            <Stack>
+                                <Group>
+                                    <Pencil size={18} />
                                     <Title order={5}>Editor</Title>
                                 </Group>
 
-                                <NumberInput
-                                    label="Font Size"
-                                    value={fontSize}
-                                    onChange={setFontSize}
-                                    min={10}
-                                    max={40}
-                                />
+                                <NumberInput label="Font Size" value={fontSize} onChange={setFontSize} />
 
-                                <Select
-                                    label="Font Style"
-                                    data={[
-                                        { value: "monospace", label: "Monospace" },
-                                        { value: "jetbrains", label: "JetBrains Mono" },
-                                        { value: "fira", label: "Fira Code" }
-                                    ]}
+                                <FontSettings
+                                    fontFamily={editorFontFamily}
+                                    setFontFamily={setEditorFontFamily}
+                                    fontWeight={editorFontWeight}
+                                    setFontWeight={setEditorFontWeight}
+                                    fontItalic={editorFontItalic}
+                                    setFontItalic={setEditorFontItalic}
                                 />
 
                                 <Divider />
 
-                                <Switch label="Auto Save" />
-
-                                <NumberInput
-                                    label="Auto Save Delay (ms)"
-                                    min={200}
-                                    max={5000}
-                                    defaultValue={1000}
-                                />
-
-                                <Divider />
+                                <Switch label="Auto Save" checked={autoSave} onChange={(e) => setAutoSave(e.currentTarget.checked)} />
+                                <NumberInput label="Auto Save Delay" value={autoSaveDelay} onChange={setAutoSaveDelay} />
 
                                 <Select
                                     label="Cursor Style"
+                                    value={cursorStyle}
+                                    onChange={setCursorStyle}
                                     data={[
                                         { value: "line", label: "Line" },
                                         { value: "block", label: "Block" },
@@ -215,71 +267,38 @@ export default function SettingsPanel({ opened, close }) {
                                     ]}
                                 />
 
-                                <Switch label="Word Wrap" />
-                                <Switch label="Show Minimap" />
-
+                                <Switch label="Word Wrap" checked={wordWrap} onChange={(e) => setWordWrap(e.currentTarget.checked)} />
+                                <Switch label="Minimap" checked={minimap} onChange={(e) => setMinimap(e.currentTarget.checked)} />
                             </Stack>
-
                         </Card>
                     </Grid.Col>
 
-
                     {/* TERMINAL */}
                     <Grid.Col span={{ base: 12, md: 4 }}>
-                        <Card
-                            withBorder
-                            radius="md"
-                            p="lg"
-                            style={{
-                                background: "rgba(255,255,255,0.02)",
-                                borderColor: "rgba(255,255,255,0.08)"
-                            }}
-                        >
-
-                            <Stack gap="md">
-
-                                <Group gap={6}>
-                                    <TerminalSquare size={18} color="#34d399" />
+                        <Card withBorder p="lg">
+                            <Stack>
+                                <Group>
+                                    <TerminalSquare size={18} />
                                     <Title order={5}>Terminal</Title>
                                 </Group>
 
-                                <NumberInput
-                                    label="Font Size"
-                                    min={10}
-                                    max={24}
-                                    defaultValue={13}
-                                />
+                                <NumberInput label="Font Size" value={terminalFontSize} onChange={setTerminalFontSize} />
 
-                                <Select
-                                    label="Font Family"
-                                    data={[
-                                        { value: "monospace", label: "Monospace" },
-                                        { value: "jetbrains", label: "JetBrains Mono" },
-                                        { value: "fira", label: "Fira Code" }
-                                    ]}
+                                <FontSettings
+                                    fontFamily={terminalFontFamily}
+                                    setFontFamily={setTerminalFontFamily}
+                                    fontWeight={terminalFontWeight}
+                                    setFontWeight={setTerminalFontWeight}
+                                    fontItalic={terminalFontItalic}
+                                    setFontItalic={setTerminalFontItalic}
                                 />
 
                                 <Divider />
 
-                                <Switch label="Cursor Blink" />
-
-                                <NumberInput
-                                    label="Scrollback Buffer"
-                                    min={100}
-                                    max={5000}
-                                    defaultValue={1000}
-                                />
-
-                                <NumberInput
-                                    label="Line Height"
-                                    min={1}
-                                    max={2}
-                                    step={0.1}
-                                    defaultValue={1.2}
-                                />
-
+                                <Switch label="Cursor Blink" checked={cursorBlink} onChange={(e) => setCursorBlink(e.currentTarget.checked)} />
+                                <NumberInput label="Scrollback Buffer" value={scrollback} onChange={setScrollback} />
+                                <NumberInput label="Line Height" value={lineHeight} onChange={setLineHeight} step={0.1} />
                             </Stack>
-
                         </Card>
                     </Grid.Col>
 

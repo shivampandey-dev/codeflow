@@ -1,10 +1,10 @@
-
 import Editor, { useMonaco } from "@monaco-editor/react"
 import { useEditorStore } from "../../../store/editorStore"
 import { getLanguage } from "./languageMap"
 import Tabs from "./Tabs"
 import SettingsPanel from "./SettingsPanel"
-import image from "../../../Assets/logo.png";
+import image from "../../../Assets/logo.png"
+
 import { useSettingsStore } from "../../../store/settingsStore"
 import { loadMonacoTheme } from "../../../utils/loadTheme"
 import { deriveUIColors } from "../../../utils/themeColors"
@@ -15,6 +15,7 @@ import { ActionIcon } from "@mantine/core"
 import { Settings } from "lucide-react"
 
 export default function CodeEditor() {
+
     const {
         activeFile,
         contents,
@@ -23,7 +24,19 @@ export default function CodeEditor() {
         webcontainer
     } = useEditorStore()
 
-    const { fontSize, theme, setThemeData, themeData } = useSettingsStore()
+    const {
+        theme,
+        themeData,
+        setThemeData,
+
+        fontSize,
+        editorFontFamily,
+        wordWrap,
+        minimap,
+        cursorStyle,
+        autoSave,
+        autoSaveDelay
+    } = useSettingsStore()
 
     const monaco = useMonaco()
 
@@ -36,7 +49,7 @@ export default function CodeEditor() {
     const [settingsOpen, setSettingsOpen] = useState(false)
 
     /*
-    HEADER THEME COLORS
+    THEME COLORS
     */
 
     const editorBg =
@@ -45,7 +58,7 @@ export default function CodeEditor() {
     const ui = deriveUIColors(editorBg)
 
     /*
-    APPLY SELECTED THEME
+    APPLY THEME
     */
 
     useEffect(() => {
@@ -53,18 +66,16 @@ export default function CodeEditor() {
         if (!monaco) return
 
         async function applyTheme() {
-
             const data = await loadMonacoTheme(monaco, theme)
             setThemeData(data)
-
         }
 
         applyTheme()
 
-    }, [theme, monaco, setThemeData])
+    }, [theme, monaco])
 
     /*
-    LOAD TYPES FROM NODE_MODULES
+    LOAD TYPES
     */
 
     async function loadTypes(monacoInstance) {
@@ -128,7 +139,7 @@ export default function CodeEditor() {
     }
 
     /*
-    WATCH NODE_MODULES
+    WATCH NODE MODULES
     */
 
     async function watchNodeModules(monacoInstance) {
@@ -145,9 +156,7 @@ export default function CodeEditor() {
             })
 
             watcher.on("change", async () => {
-
                 await loadTypes(monacoInstance)
-
             })
 
         } catch { }
@@ -155,37 +164,24 @@ export default function CodeEditor() {
     }
 
     /*
-    MONACO INITIALIZATION
+    MONACO INIT
     */
 
     function handleEditorMount(editor, monacoInstance) {
 
         monacoInstance.languages.typescript.javascriptDefaults.setCompilerOptions({
-
             target: monacoInstance.languages.typescript.ScriptTarget.ES2020,
             module: monacoInstance.languages.typescript.ModuleKind.ESNext,
             moduleResolution:
                 monacoInstance.languages.typescript.ModuleResolutionKind.NodeJs,
-
             allowNonTsExtensions: true,
             allowJs: true,
-
             jsx: monacoInstance.languages.typescript.JsxEmit.ReactJSX,
-
             esModuleInterop: true,
             allowSyntheticDefaultImports: true,
             resolveJsonModule: true,
-
             strict: false,
             noEmit: true
-
-        })
-
-        monacoInstance.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
-
-            noSemanticValidation: false,
-            noSyntaxValidation: false
-
         })
 
         loadTypes(monacoInstance)
@@ -193,20 +189,17 @@ export default function CodeEditor() {
 
         editor.addCommand(
             monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.KeyS,
-            async () => {
-                await saveFile()
-            }
+            async () => await saveFile()
         )
 
         editor.addCommand(
             monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.Comma,
             () => setSettingsOpen(true)
         )
-
     }
 
     /*
-    REGISTER FILE MODELS
+    REGISTER MODELS
     */
 
     useEffect(() => {
@@ -240,32 +233,29 @@ export default function CodeEditor() {
     }, [contents, monaco])
 
     /*
-    AUTO SAVE
+    AUTO SAVE (UPDATED)
     */
 
     useEffect(() => {
 
         if (!activeFile) return
+        if (!autoSave) return
 
         if (saveTimeout.current) {
             clearTimeout(saveTimeout.current)
         }
 
         saveTimeout.current = setTimeout(() => {
-
             saveFile()
-
-        }, 1500)
+        }, autoSaveDelay)
 
         return () => {
-
             if (saveTimeout.current) {
                 clearTimeout(saveTimeout.current)
             }
-
         }
 
-    }, [activeFile, contents])
+    }, [activeFile, contents, autoSave, autoSaveDelay])
 
     /*
     UI
@@ -273,14 +263,9 @@ export default function CodeEditor() {
 
     return (
 
-        <div
-            style={{
-                height: "100%",
-                display: "flex",
-                flexDirection: "column"
-            }}
-        >
+        <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
 
+            {/* HEADER */}
             <div
                 style={{
                     display: "flex",
@@ -289,13 +274,7 @@ export default function CodeEditor() {
                     background: ui.sidebarBg
                 }}
             >
-
-                <div
-                    style={{
-                        background: editorBg,
-                        flex: 1
-                    }}
-                >
+                <div style={{ background: editorBg, flex: 1 }}>
                     <Tabs />
                 </div>
 
@@ -306,14 +285,13 @@ export default function CodeEditor() {
                 >
                     <Settings size={16} />
                 </ActionIcon>
-
             </div>
 
+            {/* EDITOR */}
             <div style={{ flex: 1 }}>
 
                 {!activeFile ? (
 
-                    /* 🔥 VS CODE STYLE EMPTY SCREEN */
                     <div
                         style={{
                             height: "100%",
@@ -321,26 +299,18 @@ export default function CodeEditor() {
                             alignItems: "center",
                             justifyContent: "center",
                             background: editorBg,
-                            position: "relative",
-                            overflow: "hidden"
+                            position: "relative"
                         }}
                     >
-
-                        {/* Background VS Code Logo */}
                         <img
                             src={image}
                             style={{
                                 position: "absolute",
-                                width: 520,          // slightly bigger
-
-                                opacity: 0.08,       // 🔥 more visible (sweet spot)
-                                filter: "blur(1.5px) brightness(1.1)",  // 🔥 soft + slightly brighter
-
-                                pointerEvents: "none"
+                                width: 520,
+                                opacity: 0.08,
+                                filter: "blur(1.5px) brightness(1.1)"
                             }}
                         />
-
-
                     </div>
 
                 ) : (
@@ -353,7 +323,10 @@ export default function CodeEditor() {
 
                         options={{
                             fontSize,
-                            minimap: { enabled: false },
+                            fontFamily: editorFontFamily,
+                            wordWrap: wordWrap ? "on" : "off",
+                            minimap: { enabled: minimap },
+                            cursorStyle,
                             automaticLayout: true,
                             quickSuggestions: true,
                             suggestOnTriggerCharacters: true,
@@ -365,7 +338,6 @@ export default function CodeEditor() {
                         }
 
                         onMount={handleEditorMount}
-
                     />
 
                 )}
@@ -378,7 +350,5 @@ export default function CodeEditor() {
             />
 
         </div>
-
     )
 }
-
