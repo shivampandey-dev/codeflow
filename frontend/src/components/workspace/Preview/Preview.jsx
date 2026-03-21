@@ -99,7 +99,7 @@ export default function Preview({ previewUrl, logs }) {
                             e.currentTarget.style.background = "#252526";
                         }}
                     >
-                        <ExternalLink size={14} />
+                        <ExternalLink size={16} color="#38bdf8"/>
                     </button>
                 )}
             </div>

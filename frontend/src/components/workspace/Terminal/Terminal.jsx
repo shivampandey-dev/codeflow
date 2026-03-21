@@ -19,7 +19,13 @@ import { deriveUIColors } from "../../../utils/themeColors"
 
 /* ================= MAIN ================= */
 
-export default function Terminal({ process, logs, webcontainer }) {
+export default function Terminal({
+    process,
+    logs,
+    webcontainer,
+    fullscreen,
+    setFullscreen
+}) {
 
     const { themeData } = useSettingsStore()
 
@@ -27,6 +33,9 @@ export default function Terminal({ process, logs, webcontainer }) {
     const editorFg = themeData?.colors?.["editor.foreground"] || "#e2e8f0"
 
     const ui = deriveUIColors(editorBg)
+
+    // ✅ Accent color (same as settings icon)
+    const accent = "#38bdf8"
 
     const [terms, setTerms] = useState([
         {
@@ -38,7 +47,6 @@ export default function Terminal({ process, logs, webcontainer }) {
     ])
 
     const [activeIndex, setActiveIndex] = useState(0)
-    const [fullscreen, setFullscreen] = useState(false)
 
     const isMobile = useMediaQuery("(max-width:768px)")
 
@@ -49,7 +57,7 @@ export default function Terminal({ process, logs, webcontainer }) {
         padding: "6px",
         display: "flex",
         alignItems: "center",
-        color: editorFg
+        color: accent // ✅ APPLY BLUE COLOR
     }
 
     const addSplit = () => {
@@ -72,10 +80,17 @@ export default function Terminal({ process, logs, webcontainer }) {
     }
 
     return (
-        <div style={{ height: "100%", display: "flex", flexDirection: "column", background: ui.sidebarBg }}>
+        <div style={{
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+            background: ui.sidebarBg,
+            minHeight: 0
+        }}>
 
-            {/* TABS */}
+            {/* HEADER */}
             <div style={{ display: "flex", borderBottom: `1px solid ${ui.border}` }}>
+
                 <div style={{ flex: 1, display: "flex", overflowX: "auto" }}>
                     {terms.map((term, i) => (
                         <div
@@ -89,11 +104,17 @@ export default function Terminal({ process, logs, webcontainer }) {
                                 display: "flex",
                                 alignItems: "center",
                                 gap: 6,
-                                borderBottom: activeIndex === i ? `2px solid ${term.color}` : "transparent",
+                                borderBottom: activeIndex === i
+                                    ? `2px solid ${accent}`
+                                    : "transparent",
                                 color: editorFg
                             }}
                         >
-                            <TerminalIcon size={14} color={term.color} />
+                            {/* ✅ ICON COLOR FIX */}
+                            <TerminalIcon
+                                size={14}
+                                color={activeIndex === i ? accent : "#64748b"}
+                            />
                             {term.name}
                         </div>
                     ))}
@@ -101,12 +122,15 @@ export default function Terminal({ process, logs, webcontainer }) {
 
                 {/* TOOLBAR */}
                 <div style={{ display: "flex", gap: 4 }}>
+
                     <button onClick={() => setFullscreen(!fullscreen)} style={buttonStyle}>
                         {fullscreen ? <Minimize size={16} /> : <Expand size={16} />}
                     </button>
+
                     <button onClick={addSplit} style={buttonStyle}>
                         <SquareSplitHorizontal size={16} />
                     </button>
+
                     {terms.length > 1 && (
                         <button onClick={deleteTerminal} style={buttonStyle}>
                             <Trash2 size={16} />
@@ -116,8 +140,8 @@ export default function Terminal({ process, logs, webcontainer }) {
             </div>
 
             {/* TERMINAL AREA */}
-            {fullscreen || isMobile ? (
-                <div style={{ flex: 1 }}>
+            {isMobile ? (
+                <div style={{ flex: 1, minHeight: 0 }}>
                     {terms.map((term, idx) => (
                         <TerminalInstance
                             key={term.id}
@@ -128,6 +152,7 @@ export default function Terminal({ process, logs, webcontainer }) {
                             isActive={activeIndex === idx}
                             editorBg={editorBg}
                             editorFg={editorFg}
+                            fullscreen={fullscreen}
                         />
                     ))}
                 </div>
@@ -143,6 +168,7 @@ export default function Terminal({ process, logs, webcontainer }) {
                                 isActive={activeIndex === idx}
                                 editorBg={editorBg}
                                 editorFg={editorFg}
+                                fullscreen={fullscreen}
                             />
                         </Allotment.Pane>
                     ))}
@@ -161,11 +187,14 @@ function TerminalInstance({
     webcontainer,
     isActive,
     editorBg,
-    editorFg
+    editorFg,
+    fullscreen
 }) {
 
     const containerRef = useRef(null)
     const termRef = useRef(null)
+    const fitAddonRef = useRef(null)
+
     const lastIndexRef = useRef(0)
     const attachedRef = useRef(false)
 
@@ -178,8 +207,6 @@ function TerminalInstance({
         scrollback,
         lineHeight
     } = useSettingsStore()
-
-    /* INIT */
 
     useEffect(() => {
 
@@ -201,14 +228,15 @@ function TerminalInstance({
         term.loadAddon(fitAddon)
 
         term.open(containerRef.current)
-        fitAddon.fit()
 
         termRef.current = term
+        fitAddonRef.current = fitAddon
+
+        setTimeout(() => fitAddon.fit(), 50)
 
         lastIndexRef.current = 0
 
-        // 🔥 show logs on refresh
-        if (logs) {
+        if (logs ) {
             term.write(logs)
             lastIndexRef.current = logs.length
         }
@@ -236,7 +264,25 @@ function TerminalInstance({
         editorFg
     ])
 
-    /* LOG STREAM */
+    useEffect(() => {
+        if (!fitAddonRef.current) return
+
+        const t = setTimeout(() => {
+            fitAddonRef.current.fit()
+        }, 80)
+
+        return () => clearTimeout(t)
+
+    }, [fullscreen, isActive])
+
+    useEffect(() => {
+        const handleResize = () => {
+            fitAddonRef.current?.fit()
+        }
+
+        window.addEventListener("resize", handleResize)
+        return () => window.removeEventListener("resize", handleResize)
+    }, [])
 
     useEffect(() => {
 
@@ -244,7 +290,6 @@ function TerminalInstance({
         if (!logs || !termRef.current) return
 
         const term = termRef.current
-
         const newData = logs.slice(lastIndexRef.current)
 
         if (newData) {
@@ -253,8 +298,6 @@ function TerminalInstance({
         }
 
     }, [logs])
-
-    /* INPUT */
 
     useEffect(() => {
 
@@ -277,8 +320,6 @@ function TerminalInstance({
         }
 
     }, [process])
-
-    /* SHELL */
 
     useEffect(() => {
 
@@ -312,7 +353,8 @@ function TerminalInstance({
     return (
         <div style={{
             height: "100%",
-            border: isActive ? "2px solid #8883" : "1px solid #8882"
+            minHeight: 0,
+            border: isActive ? "2px solid #38bdf833" : "1px solid #8882"
         }}>
             <div ref={containerRef} style={{ height: "100%" }} />
         </div>

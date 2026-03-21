@@ -12,9 +12,9 @@ import { deriveUIColors } from "../../../utils/themeColors"
 import { useEffect, useRef, useState } from "react"
 
 import { ActionIcon } from "@mantine/core"
-import { Settings } from "lucide-react"
+import { Settings, Expand, Minimize } from "lucide-react" // ✅ added
 
-export default function CodeEditor() {
+export default function CodeEditor({ fullscreen, setFullscreen }) {
 
     const {
         activeFile,
@@ -48,21 +48,14 @@ export default function CodeEditor() {
 
     const [settingsOpen, setSettingsOpen] = useState(false)
 
-    /*
-    THEME COLORS
-    */
+    /* ================= THEME ================= */
 
     const editorBg =
         themeData?.colors?.["editor.background"] || "#1e1e1e"
 
     const ui = deriveUIColors(editorBg)
 
-    /*
-    APPLY THEME
-    */
-
     useEffect(() => {
-
         if (!monaco) return
 
         async function applyTheme() {
@@ -71,12 +64,9 @@ export default function CodeEditor() {
         }
 
         applyTheme()
-
     }, [theme, monaco])
 
-    /*
-    LOAD TYPES
-    */
+    /* ================= TYPES ================= */
 
     async function loadTypes(monacoInstance) {
 
@@ -85,7 +75,6 @@ export default function CodeEditor() {
         const loaded = new Set()
 
         async function walk(dir) {
-
             let entries
 
             try {
@@ -125,22 +114,14 @@ export default function CodeEditor() {
                         )
 
                         loaded.add(path)
-
                     }
 
                 } catch { }
-
             }
-
         }
 
         await walk("/node_modules")
-
     }
-
-    /*
-    WATCH NODE MODULES
-    */
 
     async function watchNodeModules(monacoInstance) {
 
@@ -150,7 +131,6 @@ export default function CodeEditor() {
         watcherStarted.current = true
 
         try {
-
             const watcher = await webcontainer.fs.watch("/node_modules", {
                 recursive: true
             })
@@ -160,12 +140,9 @@ export default function CodeEditor() {
             })
 
         } catch { }
-
     }
 
-    /*
-    MONACO INIT
-    */
+    /* ================= MONACO INIT ================= */
 
     function handleEditorMount(editor, monacoInstance) {
 
@@ -198,9 +175,7 @@ export default function CodeEditor() {
         )
     }
 
-    /*
-    REGISTER MODELS
-    */
+    /* ================= MODELS ================= */
 
     useEffect(() => {
 
@@ -215,26 +190,20 @@ export default function CodeEditor() {
             const safeCode = code ?? ""
 
             if (!model) {
-
                 monaco.editor.createModel(
                     safeCode,
                     getLanguage(path),
                     uri
                 )
-
             } else if (model.getValue() !== safeCode) {
-
                 model.setValue(safeCode)
-
             }
 
         })
 
     }, [contents, monaco])
 
-    /*
-    AUTO SAVE (UPDATED)
-    */
+    /* ================= AUTO SAVE ================= */
 
     useEffect(() => {
 
@@ -257,13 +226,16 @@ export default function CodeEditor() {
 
     }, [activeFile, contents, autoSave, autoSaveDelay])
 
-    /*
-    UI
-    */
+    /* ================= UI ================= */
 
     return (
 
-        <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+        <div style={{
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+            minHeight: 0
+        }}>
 
             {/* HEADER */}
             <div
@@ -278,6 +250,15 @@ export default function CodeEditor() {
                     <Tabs />
                 </div>
 
+                {/* 🔥 EXPAND BUTTON */}
+                <ActionIcon
+                    variant="subtle"
+                    onClick={() => setFullscreen(!fullscreen)}
+                >
+                    {fullscreen ? <Minimize size={16} /> : <Expand size={16} />}
+                </ActionIcon>
+
+                {/* SETTINGS */}
                 <ActionIcon
                     variant="subtle"
                     mr="xs"
@@ -288,7 +269,7 @@ export default function CodeEditor() {
             </div>
 
             {/* EDITOR */}
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minHeight: 0 }}>
 
                 {!activeFile ? (
 
