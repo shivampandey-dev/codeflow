@@ -224,7 +224,7 @@ export default function FileTree({ webcontainer }) {
             }}
         >
 
-            <FileTreeHeader refresh={refresh} />
+            <FileTreeHeader refresh={refresh} webcontainer={webcontainer} />
 
             {tree.map(node => (
 

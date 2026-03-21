@@ -9,6 +9,140 @@ import Preview from "./Preview/Preview";
 import Terminal from "./Terminal/Terminal";
 import CodeEditor from "./Editor/CodeEditor";
 
+
+// ─── Icons ────────────────────────────────────────────────────────────────────
+const FilesIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+        <polyline points="13 2 13 9 20 9" />
+    </svg>
+);
+const EditorIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="16 18 22 12 16 6" />
+        <polyline points="8 6 2 12 8 18" />
+    </svg>
+);
+const PreviewIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+        <line x1="8" y1="21" x2="16" y2="21" />
+        <line x1="12" y1="17" x2="12" y2="21" />
+    </svg>
+);
+const TerminalIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="4 17 10 11 4 5" />
+        <line x1="12" y1="19" x2="20" y2="19" />
+    </svg>
+);
+
+// ─── Mobile Tab Layout ────────────────────────────────────────────────────────
+function MobileLayout({ previewUrl, logs, process, webcontainer, projectPath }) {
+    const [activeTab, setActiveTab] = useState("editor");
+
+    const tabs = [
+        { key: "files", label: "Files", Icon: FilesIcon },
+        { key: "editor", label: "Editor", Icon: EditorIcon },
+        { key: "preview", label: "Preview", Icon: PreviewIcon },
+        { key: "terminal", label: "Terminal", Icon: TerminalIcon },
+    ];
+
+    return (
+        <Box style={{
+            height: "100dvh",
+            width: "100%",
+            background: "#0b1220",
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+        }}>
+
+            {/* ── Tab Bar ── */}
+            <Box style={{
+                display: "flex",
+                borderBottom: "1px solid #1a2740",
+                background: "#0d1626",
+                flexShrink: 0,
+                height: "46px",
+            }}>
+                {tabs.map(({ key, label, Icon }) => {
+                    const isActive = activeTab === key;
+                    return (
+                        <button
+                            key={key}
+                            onClick={() => setActiveTab(key)}
+                            style={{
+                                flex: 1,
+                                height: "100%",
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: "2px",
+                                border: "none",
+                                borderBottom: isActive ? "2px solid #3b82f6" : "2px solid transparent",
+                                background: "transparent",
+                                color: isActive ? "#60a5fa" : "#4a5a72",
+                                cursor: "pointer",
+                                fontSize: "9px",
+                                fontWeight: 700,
+                                letterSpacing: "0.06em",
+                                textTransform: "uppercase",
+                                transition: "color 0.15s ease, border-color 0.15s ease",
+                                padding: "0 4px",
+                                outline: "none",
+                                WebkitTapHighlightColor: "transparent",
+                            }}
+                        >
+                            <Icon />
+                            {label}
+                        </button>
+                    );
+                })}
+            </Box>
+
+            {/* ── Panels ── all mounted, only active one visible ── */}
+            <Box style={{ flex: 1, minHeight: 0, position: "relative" }}>
+
+                {tabs.map(({ key }) => (
+                    <Box
+                        key={key}
+                        style={{
+                            position: "absolute",
+                            inset: 0,
+                            display: activeTab === key ? "flex" : "none",
+                            flexDirection: "column",
+                            overflow: "hidden",
+                        }}
+                    >
+                        {key === "files" && (
+                            <FileTree webcontainer={webcontainer} logs={logs} />
+                        )}
+                        {key === "editor" && (
+                            <CodeEditor />
+                        )}
+                        {key === "preview" && (
+                            <Box style={{ height: "100%", width: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                                <Preview previewUrl={previewUrl} logs={logs} />
+                            </Box>
+                        )}
+                        {key === "terminal" && (
+                            <Terminal
+                                logs={logs}
+                                process={process}
+                                webcontainer={webcontainer}
+                                projectPath={projectPath}
+                            />
+                        )}
+                    </Box>
+                ))}
+
+            </Box>
+        </Box>
+    );
+}
+
 export default function WorkspaceLayout({
     previewUrl,
     logs,
@@ -21,140 +155,106 @@ export default function WorkspaceLayout({
     const [terminalFullscreen, setTerminalFullscreen] = useState(false);
     const [editorFullscreen, setEditorFullscreen] = useState(false);
 
-    // 🔥 IMPORTANT: Allotment ref
-    const allotmentRef = useRef(null);
+    const verticalAllotmentRef = useRef(null);
+    const horizontalAllotmentRef = useRef(null);
 
-    // 🔥 FULLSCREEN HANDLER (MAIN FIX)
     const handleTerminalFullscreen = (value) => {
         setTerminalFullscreen(value);
-
-        if (allotmentRef.current) {
-            if (value) {
-                // FULLSCREEN TERMINAL
-                allotmentRef.current.resize([0, 100]);
-            } else {
-                // NORMAL LAYOUT
-                allotmentRef.current.resize([75, 25]);
-            }
+        if (value) {
+            setEditorFullscreen(false);
+            // restore horizontal first so top pane collapses cleanly
+            horizontalAllotmentRef.current?.resize([18, 57, 25]);
+            verticalAllotmentRef.current?.resize([0, 9999]);
+        } else {
+            verticalAllotmentRef.current?.resize([750, 250]);
         }
     };
 
-    /* ================= MOBILE ================= */
+    const handleEditorFullscreen = (value) => {
+        setEditorFullscreen(value);
+        if (value) {
+            setTerminalFullscreen(false);
+            verticalAllotmentRef.current?.resize([9999, 0]);
+            horizontalAllotmentRef.current?.resize([0, 9999, 0]);
+        } else {
+            verticalAllotmentRef.current?.resize([750, 250]);
+            horizontalAllotmentRef.current?.resize([18, 57, 25]);
+        }
+    };
+
+    /* ── Mobile ── */
     if (isMobile) {
         return (
-            <Box
-                style={{
-                    height: "100vh",
-                    width: "100%",
-                    overflowY: "auto",
-                    background: "#0b1220",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "10px",
-                    padding: "8px",
-                }}
-            >
-                <Box style={{ minHeight: "200px", height: "30vh" }}>
-                    <FileTree webcontainer={webcontainer} />
-                </Box>
-
-                <Box style={{ minHeight: "320px", height: "45vh" }}>
-                    <CodeEditor />
-                </Box>
-
-                <Box style={{ minHeight: "220px", height: "35vh" }}>
-                    <Preview previewUrl={previewUrl} logs={logs} />
-                </Box>
-
-                <Box style={{ minHeight: "260px", height: "40vh" }}>
-                    <Terminal
-                        logs={logs}
-                        process={process}
-                        webcontainer={webcontainer}
-                        projectPath={projectPath}
-                    />
-                </Box>
-            </Box>
+            <MobileLayout
+                previewUrl={previewUrl}
+                logs={logs}
+                process={process}
+                webcontainer={webcontainer}
+                projectPath={projectPath}
+            />
         );
     }
 
-    /* ================= DESKTOP ================= */
+    /* ── Desktop ── */
     return (
-        <Box
-            style={{
-                height: "100dvh",
-                position: "relative",
-                overflow: "hidden",
-                background: "#0b1220",
-            }}
-        >
+        <Box style={{
+            height: "100dvh",
+            position: "relative",
+            overflow: "hidden",
+            background: "#0b1220",
+        }}>
             <Allotment
                 vertical
-                ref={allotmentRef}
-                defaultSizes={[75, 25]} // 🔥 IMPORTANT
+                ref={verticalAllotmentRef}
+                defaultSizes={[75, 25]}
                 style={{ height: "100%" }}
             >
-
                 {/* ===== TOP PANE ===== */}
-                <Allotment.Pane minSize={0}>
-                    <Allotment>
-
+                <Allotment.Pane minSize={0} snap>
+                    <Allotment
+                        ref={horizontalAllotmentRef}
+                        defaultSizes={[18, 57, 25]}
+                        style={{ height: "100%" }}
+                    >
                         {/* FILE TREE */}
-                        <Allotment.Pane
-                            preferredSize={260}
-                            minSize={editorFullscreen ? 0 : 180}
-                            style={
-                                editorFullscreen
-                                    ? { maxWidth: 0, overflow: "hidden" }
-                                    : {}
-                            }
-                        >
-                            <FileTree webcontainer={webcontainer} logs={logs} />
+                        <Allotment.Pane preferredSize={220} minSize={0}>
+                            <Box style={{ height: "100%", overflow: "hidden" }}>
+                                <FileTree webcontainer={webcontainer} logs={logs} />
+                            </Box>
                         </Allotment.Pane>
 
                         {/* EDITOR */}
                         <Allotment.Pane minSize={0}>
-                            <CodeEditor
-                                fullscreen={editorFullscreen}
-                                setFullscreen={setEditorFullscreen}
-                            />
+                            <Box style={{ height: "100%", overflow: "hidden" }}>
+                                <CodeEditor
+                                    fullscreen={editorFullscreen}
+                                    setFullscreen={handleEditorFullscreen}
+                                />
+                            </Box>
                         </Allotment.Pane>
 
                         {/* PREVIEW */}
-                        <Allotment.Pane
-                            preferredSize={320}
-                            minSize={editorFullscreen ? 0 : 180}
-                            style={
-                                editorFullscreen
-                                    ? { maxWidth: 0, overflow: "hidden" }
-                                    : {}
-                            }
-                        >
-                            <Preview previewUrl={previewUrl} logs={logs} />
+                        <Allotment.Pane preferredSize={300} minSize={0}>
+                            <Box style={{ height: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                                <Preview previewUrl={previewUrl} logs={logs} />
+                            </Box>
                         </Allotment.Pane>
-
                     </Allotment>
                 </Allotment.Pane>
 
                 {/* ===== TERMINAL ===== */}
-                <Allotment.Pane minSize={10}>
-                    <Box
-                        style={{
-                            height: "100%",
-                            background: "#0b1220",
-                        }}
-                    >
+                <Allotment.Pane minSize={0} snap>
+                    <Box style={{ height: "100%", overflow: "hidden", background: "#0b1220" }}>
                         <Terminal
                             logs={logs}
                             process={process}
                             webcontainer={webcontainer}
                             projectPath={projectPath}
                             fullscreen={terminalFullscreen}
-                            setFullscreen={handleTerminalFullscreen} // 🔥 FIX HERE
+                            setFullscreen={handleTerminalFullscreen}
                         />
                     </Box>
                 </Allotment.Pane>
-
             </Allotment>
         </Box>
     );
