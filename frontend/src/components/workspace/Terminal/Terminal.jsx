@@ -16,6 +16,7 @@ import {
 
 import { useSettingsStore } from "../../../store/settingsStore"
 import { deriveUIColors } from "../../../utils/themeColors"
+import { loadFont } from "../../../utils/loadFont"
 
 /* ================= MAIN ================= */
 
@@ -34,7 +35,6 @@ export default function Terminal({
 
     const ui = deriveUIColors(editorBg)
 
-    // ✅ Accent color (same as settings icon)
     const accent = "#38bdf8"
 
     const [terms, setTerms] = useState([
@@ -57,7 +57,7 @@ export default function Terminal({
         padding: "6px",
         display: "flex",
         alignItems: "center",
-        color: accent // ✅ APPLY BLUE COLOR
+        color: accent
     }
 
     const addSplit = () => {
@@ -110,7 +110,6 @@ export default function Terminal({
                                 color: editorFg
                             }}
                         >
-                            {/* ✅ ICON COLOR FIX */}
                             <TerminalIcon
                                 size={14}
                                 color={activeIndex === i ? accent : "#64748b"}
@@ -122,7 +121,6 @@ export default function Terminal({
 
                 {/* TOOLBAR */}
                 <div style={{ display: "flex", gap: 4 }}>
-
                     <button onClick={() => setFullscreen(!fullscreen)} style={buttonStyle}>
                         {fullscreen ? <Minimize size={16} /> : <Expand size={16} />}
                     </button>
@@ -208,11 +206,25 @@ function TerminalInstance({
         lineHeight
     } = useSettingsStore()
 
+    /*
+    =========================
+    🔥 LOAD FONT (IMPORTANT)
+    =========================
+    */
+    useEffect(() => {
+        loadFont(terminalFontFamily, terminalFontWeight, terminalFontItalic)
+    }, [terminalFontFamily, terminalFontWeight, terminalFontItalic])
+
+    /*
+    =========================
+    TERMINAL INIT
+    =========================
+    */
     useEffect(() => {
 
         const term = new XTerm({
             fontSize: terminalFontSize,
-            fontFamily: terminalFontFamily,
+            fontFamily: `"${terminalFontFamily}", monospace`,
             fontWeight: terminalFontWeight,
             fontStyle: terminalFontItalic ? "italic" : "normal",
             lineHeight,
@@ -235,11 +247,6 @@ function TerminalInstance({
         setTimeout(() => fitAddon.fit(), 50)
 
         lastIndexRef.current = 0
-
-        if (logs ) {
-            term.write(logs)
-            lastIndexRef.current = logs.length
-        }
 
         const resizeObserver = new ResizeObserver(() => {
             fitAddon.fit()
@@ -264,6 +271,11 @@ function TerminalInstance({
         editorFg
     ])
 
+    /*
+    =========================
+    RESIZE
+    =========================
+    */
     useEffect(() => {
         if (!fitAddonRef.current) return
 
@@ -275,21 +287,26 @@ function TerminalInstance({
 
     }, [fullscreen, isActive])
 
-    useEffect(() => {
-        const handleResize = () => {
-            fitAddonRef.current?.fit()
-        }
-
-        window.addEventListener("resize", handleResize)
-        return () => window.removeEventListener("resize", handleResize)
-    }, [])
-
+    /*
+    =========================
+    LOG STREAM (FIXED)
+    =========================
+    */
     useEffect(() => {
 
         if (type !== "main") return
         if (!logs || !termRef.current) return
 
         const term = termRef.current
+
+        // 🚫 skip status logs
+        if (logs.startsWith("__STATUS__")) return
+
+        // ✅ handle reset
+        if (logs.length < lastIndexRef.current) {
+            lastIndexRef.current = 0
+        }
+
         const newData = logs.slice(lastIndexRef.current)
 
         if (newData) {
@@ -299,6 +316,11 @@ function TerminalInstance({
 
     }, [logs])
 
+    /*
+    =========================
+    PROCESS INPUT
+    =========================
+    */
     useEffect(() => {
 
         if (type !== "main") return
@@ -321,6 +343,11 @@ function TerminalInstance({
 
     }, [process])
 
+    /*
+    =========================
+    SHELL MODE
+    =========================
+    */
     useEffect(() => {
 
         if (type !== "shell") return

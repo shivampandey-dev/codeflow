@@ -1,64 +1,115 @@
+/*
+=========================
+GET FONT OPTIONS
+=========================
+*/
 
-    export function getFontOptions(fontJson, limit = 120) {
-        return Object.keys(fontJson)
-            .slice(0, limit)
-            .map((font) => ({
-                value: font,
-                label: font
-            }))
-    }
+export function getFontOptions(fontJson, limit) {
 
-    /*
-    =========================
-    GET FONT DATA
-    =========================
-    */
+    if (!fontJson) return []
 
-    export function getFontData(fontJson, fontName) {
-        return fontJson?.[fontName] || null
-    }
+    // ✅ ARRAY FORMAT
+    if (Array.isArray(fontJson)) {
+        const data = limit ? fontJson.slice(0, limit) : fontJson
 
-    /*
-    =========================
-    GET FONT CATEGORY
-    =========================
-    */
-
-    export function getFontCategory(fontData) {
-        return fontData?.category || "unknown"
-    }
-
-    /*
-    =========================
-    GET AVAILABLE WEIGHTS
-    =========================
-    */
-
-    export function getFontWeights(fontData) {
-        if (!fontData?.variants?.normal) return []
-
-        return Object.keys(fontData.variants.normal).map((w) => ({
-            value: w,
-            label: w
+        return data.map((font) => ({
+            value: font.family,
+            label: font.family
         }))
     }
 
-    /*
-    =========================
-    CHECK ITALIC SUPPORT
-    =========================
-    */
+    // ✅ OBJECT FORMAT
+    const keys = Object.keys(fontJson)
+    const data = limit ? keys.slice(0, limit) : keys
 
-    export function hasItalic(fontData) {
-        return !!fontData?.variants?.italic
+    return data.map((font) => ({
+        value: font,
+        label: font
+    }))
+}
+
+/*
+=========================
+GET FONT DATA
+=========================
+*/
+
+export function getFontData(fontJson, fontName) {
+
+    if (!fontJson || !fontName) return null
+
+    // ✅ ARRAY FORMAT
+    if (Array.isArray(fontJson)) {
+        return fontJson.find(f => f.family === fontName) || null
     }
 
-    /*
-    =========================
-    GET FONT URL (DYNAMIC)
-    =========================
-    */
+    // ✅ OBJECT FORMAT
+    return fontJson?.[fontName] || null
+}
 
-    export function getFontUrl(fontData, weight = "400", style = "normal") {
-        return fontData?.variants?.[style]?.[weight]?.url?.woff2 || null
+/*
+=========================
+GET FONT CATEGORY
+=========================
+*/
+
+export function getFontCategory(fontData) {
+    return fontData?.category || "unknown"
+}
+
+/*
+=========================
+GET AVAILABLE WEIGHTS
+=========================
+*/
+
+export function getWeightsFromVariants(fontData) {
+
+    if (!fontData?.variants) {
+        return [{ value: "400", label: "400" }]
     }
+
+    const weights = new Set()
+
+    fontData.variants.forEach((variant) => {
+
+        // remove "italic"
+        const clean = variant.replace("italic", "")
+
+        if (clean === "regular") {
+            weights.add("400")
+        } else if (/^\d+$/.test(clean)) {
+            weights.add(clean)
+        }
+    })
+
+    return Array.from(weights)
+        .sort((a, b) => Number(a) - Number(b))
+        .map((w) => ({
+            value: w,
+            label: w
+        }))
+}
+
+/*
+=========================
+CHECK ITALIC SUPPORT
+=========================
+*/
+
+export function hasItalic(fontData) {
+
+    if (!fontData?.variants) return false
+
+    return fontData.variants.some(v => v.includes("italic"))
+}
+
+/*
+=========================
+GET FONT URL (LEGACY)
+=========================
+*/
+
+export function getFontUrl(fontData, weight = "400", style = "normal") {
+    return fontData?.variants?.[style]?.[weight]?.url?.woff2 || null
+}

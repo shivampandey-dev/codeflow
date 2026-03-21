@@ -2,7 +2,7 @@ import { Box } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import { Allotment } from "allotment";
 import "allotment/dist/style.css";
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 import FileTree from "./FileTree/FileTree";
 import Preview from "./Preview/Preview";
@@ -18,9 +18,26 @@ export default function WorkspaceLayout({
 }) {
     const isMobile = useMediaQuery("(max-width: 768px)");
 
-    // ✅ FULLSCREEN STATES
     const [terminalFullscreen, setTerminalFullscreen] = useState(false);
     const [editorFullscreen, setEditorFullscreen] = useState(false);
+
+    // 🔥 IMPORTANT: Allotment ref
+    const allotmentRef = useRef(null);
+
+    // 🔥 FULLSCREEN HANDLER (MAIN FIX)
+    const handleTerminalFullscreen = (value) => {
+        setTerminalFullscreen(value);
+
+        if (allotmentRef.current) {
+            if (value) {
+                // FULLSCREEN TERMINAL
+                allotmentRef.current.resize([0, 100]);
+            } else {
+                // NORMAL LAYOUT
+                allotmentRef.current.resize([75, 25]);
+            }
+        }
+    };
 
     /* ================= MOBILE ================= */
     if (isMobile) {
@@ -71,47 +88,61 @@ export default function WorkspaceLayout({
                 background: "#0b1220",
             }}
         >
-            <Allotment key={`${terminalFullscreen}-${editorFullscreen}`} vertical style={{ height: "100%" }}>
+            <Allotment
+                vertical
+                ref={allotmentRef}
+                defaultSizes={[75, 25]} // 🔥 IMPORTANT
+                style={{ height: "100%" }}
+            >
 
-                {/* ================= EDITOR FULLSCREEN ================= */}
-                {editorFullscreen && (
-                    <Allotment.Pane preferredSize="100%">
-                        <CodeEditor
-                            fullscreen={editorFullscreen}
-                            setFullscreen={setEditorFullscreen}
-                        />
-                    </Allotment.Pane>
-                )}
+                {/* ===== TOP PANE ===== */}
+                <Allotment.Pane minSize={0}>
+                    <Allotment>
 
-                {/* ================= NORMAL LAYOUT ================= */}
-                {!editorFullscreen && !terminalFullscreen && (
-                    <Allotment.Pane preferredSize="75%">
-                        <Allotment>
+                        {/* FILE TREE */}
+                        <Allotment.Pane
+                            preferredSize={260}
+                            minSize={editorFullscreen ? 0 : 180}
+                            style={
+                                editorFullscreen
+                                    ? { maxWidth: 0, overflow: "hidden" }
+                                    : {}
+                            }
+                        >
+                            <FileTree webcontainer={webcontainer} logs={logs} />
+                        </Allotment.Pane>
 
-                            <Allotment.Pane preferredSize={260} minSize={180}>
-                                <FileTree webcontainer={webcontainer} logs={logs} />
-                            </Allotment.Pane>
+                        {/* EDITOR */}
+                        <Allotment.Pane minSize={0}>
+                            <CodeEditor
+                                fullscreen={editorFullscreen}
+                                setFullscreen={setEditorFullscreen}
+                            />
+                        </Allotment.Pane>
 
-                            <Allotment.Pane>
-                                <CodeEditor
-                                    fullscreen={editorFullscreen}
-                                    setFullscreen={setEditorFullscreen}
-                                />
-                            </Allotment.Pane>
+                        {/* PREVIEW */}
+                        <Allotment.Pane
+                            preferredSize={320}
+                            minSize={editorFullscreen ? 0 : 180}
+                            style={
+                                editorFullscreen
+                                    ? { maxWidth: 0, overflow: "hidden" }
+                                    : {}
+                            }
+                        >
+                            <Preview previewUrl={previewUrl} logs={logs} />
+                        </Allotment.Pane>
 
-                            <Allotment.Pane preferredSize={320} minSize={180}>
-                                <Preview previewUrl={previewUrl} logs={logs} />
-                            </Allotment.Pane>
+                    </Allotment>
+                </Allotment.Pane>
 
-                        </Allotment>
-                    </Allotment.Pane>
-                )}
-
-                {/* ================= TERMINAL ================= */}
-                {!editorFullscreen && (
-                    <Allotment.Pane
-                        preferredSize={terminalFullscreen ? "100%" : 260}
-                        minSize={160}
+                {/* ===== TERMINAL ===== */}
+                <Allotment.Pane minSize={10}>
+                    <Box
+                        style={{
+                            height: "100%",
+                            background: "#0b1220",
+                        }}
                     >
                         <Terminal
                             logs={logs}
@@ -119,10 +150,10 @@ export default function WorkspaceLayout({
                             webcontainer={webcontainer}
                             projectPath={projectPath}
                             fullscreen={terminalFullscreen}
-                            setFullscreen={setTerminalFullscreen}
+                            setFullscreen={handleTerminalFullscreen} // 🔥 FIX HERE
                         />
-                    </Allotment.Pane>
-                )}
+                    </Box>
+                </Allotment.Pane>
 
             </Allotment>
         </Box>
