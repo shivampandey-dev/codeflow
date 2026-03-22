@@ -2,21 +2,23 @@ import { Box, Text } from "@mantine/core";
 import { IconBolt, IconUpload } from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
 import { useMediaQuery } from "@mantine/hooks";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-
+import { bootWebContainer } from "../../pages/runtime/webcontainer/webcontainer";
 import CreateProjectModal from "../project/CreateProjectModal/CreateProjectModal";
 import UploadProjectModal from "../project/UploadProjectModal/UploadProjectModal";
+import { folderFilesToTree, zipFileToTree } from "../project/UploadProjectModal/fileUtils";
+import { setUploadedTree } from "../../store/uploadStore";
 
 export default function CTAButtons() {
     const ref = useRef(null);
+    const navigate = useNavigate();
     const [visible, setVisible] = useState(false);
-
     const [openCreate, setOpenCreate] = useState(false);
     const [openUpload, setOpenUpload] = useState(false);
 
     const isBelow720 = useMediaQuery("(max-width: 720px)");
     const isBelow450 = useMediaQuery("(max-width: 450px)");
-
     const columns = isBelow720 ? 1 : 2;
 
     /* ================= REVEAL ================= */
@@ -27,10 +29,58 @@ export default function CTAButtons() {
             },
             { threshold: 0.25 }
         );
-
         if (ref.current) observer.observe(ref.current);
         return () => observer.disconnect();
     }, []);
+
+    /* ================= UPLOAD HANDLER ================= */
+    const handleUpload = async ({ type, file, files }) => {
+        // Boot WebContainer early so it's ready by the time workspace loads
+        let wc;
+        try {
+            wc = await bootWebContainer();
+        } catch (err) {
+            console.error("Failed to boot WebContainer:", err);
+            alert("Failed to initialize editor environment. Please refresh.");
+            return;
+        }
+
+        // Parse upload into WebContainer file tree
+        let result;
+        try {
+            if (type === "zip") {
+                result = await zipFileToTree(file);
+            } else if (type === "folder") {
+                result = await folderFilesToTree(files);
+            }
+        } catch (err) {
+            console.error("Failed to parse upload:", err);
+            alert("Failed to read the uploaded files. Please try again.");
+            return;
+        }
+
+        const { tree, warnings, hasPackageJson } = result;
+
+        if (warnings.length) {
+            console.warn("Skipped files:\n", warnings.join("\n"));
+        }
+
+        if (!hasPackageJson) {
+            alert("No package.json found. Please upload a valid Node.js project.");
+            return;
+        }
+
+        // Mount files into the already-booted WebContainer
+        await wc.mount(tree);
+
+        // Save tree to store so Workspace can access it
+        setUploadedTree(tree);
+
+        setOpenUpload(false);
+
+        // Navigate to workspace — Workspace.jsx will detect templateId === "uploaded"
+        navigate("/workspace/uploaded");
+    };
 
     return (
         <>
@@ -143,6 +193,7 @@ export default function CTAButtons() {
             <UploadProjectModal
                 opened={openUpload}
                 onClose={() => setOpenUpload(false)}
+                onUpload={handleUpload}
                 layoutId="upload-project-card"
             />
         </>
@@ -150,14 +201,7 @@ export default function CTAButtons() {
 }
 
 /* ================= CARD ================= */
-
-function GlassCard({
-    icon,
-    title,
-    desc,
-    button,
-    gradient,
-}) {
+function GlassCard({ icon, title, desc, button, gradient }) {
     const isMobile = useMediaQuery("(max-width: 720px)");
     const [hovered, setHovered] = useState(false);
 
@@ -176,10 +220,8 @@ function GlassCard({
                     ? "1px solid rgba(99,102,241,0.6)"
                     : "1px solid rgba(255,255,255,0.08)",
                 boxShadow: hovered
-                    ? `0 0 60px rgba(99,102,241,0.35),
-                       0 25px 80px rgba(0,0,0,0.7)`
-                    : `0 0 40px rgba(59,130,246,0.12),
-                       0 20px 60px rgba(0,0,0,0.6)`,
+                    ? `0 0 60px rgba(99,102,241,0.35), 0 25px 80px rgba(0,0,0,0.7)`
+                    : `0 0 40px rgba(59,130,246,0.12), 0 20px 60px rgba(0,0,0,0.6)`,
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
@@ -187,8 +229,7 @@ function GlassCard({
                 transform: hovered
                     ? "translateY(-6px) scale(1.02)"
                     : "translateY(0px) scale(1)",
-                transition:
-                    "all 0.35s cubic-bezier(.16,1,.3,1)",
+                transition: "all 0.35s cubic-bezier(.16,1,.3,1)",
             }}
         >
             <Box
@@ -214,14 +255,7 @@ function GlassCard({
                 {title}
             </Text>
 
-            <Text
-                style={{
-                    color: "#94a3b8",
-                    fontSize: 13,
-                    marginTop: 6,
-                    marginBottom: 18,
-                }}
-            >
+            <Text style={{ color: "#94a3b8", fontSize: 13, marginTop: 6, marginBottom: 18 }}>
                 {desc}
             </Text>
 

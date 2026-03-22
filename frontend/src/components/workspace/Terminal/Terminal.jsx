@@ -193,6 +193,12 @@ function TerminalInstance({
     const termRef = useRef(null)
     const fitAddonRef = useRef(null)
 
+    // ✅ Ref so onData always sees current isActive without stale closure
+    const isActiveRef = useRef(isActive)
+    useEffect(() => {
+        isActiveRef.current = isActive
+    }, [isActive])
+
     const lastIndexRef = useRef(0)
     const attachedRef = useRef(false)
 
@@ -208,7 +214,7 @@ function TerminalInstance({
 
     /*
     =========================
-    🔥 LOAD FONT (IMPORTANT)
+    🔥 LOAD FONT
     =========================
     */
     useEffect(() => {
@@ -273,7 +279,7 @@ function TerminalInstance({
 
     /*
     =========================
-    RESIZE
+    RESIZE — also forward to shell process so PTY cols/rows stay in sync
     =========================
     */
     useEffect(() => {
@@ -281,15 +287,24 @@ function TerminalInstance({
 
         const t = setTimeout(() => {
             fitAddonRef.current.fit()
+
+            // ✅ Resize the jsh PTY to match xterm dimensions
+            if (process?.resize && termRef.current) {
+                try {
+                    process.resize(termRef.current.cols, termRef.current.rows)
+                } catch { }
+            }
         }, 80)
 
         return () => clearTimeout(t)
 
-    }, [fullscreen, isActive])
+    }, [fullscreen, isActive, process])
 
     /*
     =========================
-    LOG STREAM (FIXED)
+    LOG STREAM (main terminal only)
+    Reads new chunks from the accumulated `logs` string and writes
+    them to xterm. Strips __STATUS__ control lines before display.
     =========================
     */
     useEffect(() => {
@@ -299,26 +314,38 @@ function TerminalInstance({
 
         const term = termRef.current
 
-        // 🚫 skip status logs
-        if (logs.startsWith("__STATUS__")) return
-
-        // ✅ handle reset
+        // Handle reset (e.g. project reload clears logs)
         if (logs.length < lastIndexRef.current) {
             lastIndexRef.current = 0
         }
 
         const newData = logs.slice(lastIndexRef.current)
+        lastIndexRef.current = logs.length
 
-        if (newData) {
-            term.write(newData)
-            lastIndexRef.current = logs.length
+        if (!newData) return
+
+        // ✅ Strip __STATUS__:... control lines — they are for app state only,
+        // not for display. Replace the whole line including surrounding \r\n.
+        const filtered = newData.replace(/\r?\n?__STATUS__:[^\r\n]*\r?\n?/g, "")
+
+        if (filtered) {
+            term.write(filtered)
         }
 
     }, [logs])
 
     /*
     =========================
-    PROCESS INPUT
+    PROCESS INPUT (main terminal)
+
+    Now that startDevServer spawns a `jsh` PTY (same as the split shell),
+    this effect is straightforward: every keystroke goes straight to the
+    shell's stdin.
+
+    Ctrl+C (\x03) is passed through unchanged — jsh receives it, sends
+    SIGINT to the foreground process (npm install / npm run dev), and
+    automatically returns its own prompt when the child exits.
+    No manual kill() or fallback shell needed.
     =========================
     */
     useEffect(() => {
@@ -329,15 +356,30 @@ function TerminalInstance({
 
         attachedRef.current = true
 
-        const writer = process.input.getWriter()
+        let writer
 
-        const disposable = termRef.current.onData(data => {
-            writer.write(data)
+        const disposable = termRef.current.onData(async (data) => {
+
+            // Only the active (focused) terminal pane sends input
+            if (!isActiveRef.current) return
+
+            try {
+                if (!writer) {
+                    // jsh always has a writable stdin — this will succeed
+                    if (!process?.input) return
+                    writer = process.input.getWriter()
+                }
+                // Forward ALL keystrokes including \x03 (Ctrl+C) to jsh.
+                // The shell's PTY layer handles SIGINT, echo, line discipline.
+                await writer.write(data)
+            } catch (err) {
+                console.error("[terminal input error]", err)
+            }
         })
 
         return () => {
             disposable.dispose()
-            try { writer.releaseLock() } catch { }
+            try { writer?.releaseLock() } catch { }
             attachedRef.current = false
         }
 
@@ -345,7 +387,8 @@ function TerminalInstance({
 
     /*
     =========================
-    SHELL MODE
+    SHELL MODE (split terminals)
+    Identical to before — spawn jsh and connect stdin/stdout directly.
     =========================
     */
     useEffect(() => {
@@ -371,6 +414,11 @@ function TerminalInstance({
 
             const writer = shell.input.getWriter()
             term.onData(data => writer.write(data))
+
+            // Keep PTY size in sync for split shells too
+            term.onResize(({ cols, rows }) => {
+                try { shell.resize?.(cols, rows) } catch { }
+            })
         }
 
         startShell()
