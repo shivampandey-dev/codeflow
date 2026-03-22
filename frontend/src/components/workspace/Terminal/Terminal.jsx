@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { Terminal as XTerm } from "xterm"
 import { FitAddon } from "xterm-addon-fit"
 import { Allotment } from "allotment"
@@ -11,12 +11,19 @@ import {
     Trash2,
     Minimize,
     Expand,
-    Terminal as TerminalIcon
+    Terminal as TerminalIcon,
+    StopCircle,
+    PlayCircle
 } from "lucide-react"
 
 import { useSettingsStore } from "../../../store/settingsStore"
 import { deriveUIColors } from "../../../utils/themeColors"
 import { loadFont } from "../../../utils/loadFont"
+import {
+    startDevServer,
+    killDevServer,
+    isServerRunning
+} from "../../../pages/runtime/webcontainer/startDevServer"
 
 /* ================= MAIN ================= */
 
@@ -25,7 +32,9 @@ export default function Terminal({
     logs,
     webcontainer,
     fullscreen,
-    setFullscreen
+    setFullscreen,
+    onProcessChange,
+    onLogsChange
 }) {
 
     const { themeData } = useSettingsStore()
@@ -34,7 +43,6 @@ export default function Terminal({
     const editorFg = themeData?.colors?.["editor.foreground"] || "#e2e8f0"
 
     const ui = deriveUIColors(editorBg)
-
     const accent = "#38bdf8"
 
     const [terms, setTerms] = useState([
@@ -48,17 +56,50 @@ export default function Terminal({
 
     const [activeIndex, setActiveIndex] = useState(0)
 
+    // "booting" | "stopped" | "running"
+    const [serverState, setServerState] = useState("booting")
+
+    // Transition out of booting once webcontainer is ready
+    useEffect(() => {
+        if (!webcontainer) {
+            setServerState("booting")
+            return
+        }
+        setServerState(isServerRunning() ? "running" : "stopped")
+    }, [webcontainer])
+
+    // Sync button when process prop changes from outside
+    useEffect(() => {
+        if (!webcontainer) return
+        setServerState(process ? "running" : "stopped")
+    }, [process, webcontainer])
+
     const isMobile = useMediaQuery("(max-width:768px)")
 
-    const buttonStyle = {
+    const iconButtonStyle = {
         background: "none",
         border: "none",
         cursor: "pointer",
-        padding: "6px",
+        padding: "5px 6px",
         display: "flex",
         alignItems: "center",
         color: accent
     }
+
+    const serverButtonStyle = (color) => ({
+        background: "none",
+        border: `1px solid ${color}33`,
+        borderRadius: 4,
+        cursor: "pointer",
+        padding: "3px 8px",
+        display: "flex",
+        alignItems: "center",
+        gap: 5,
+        fontSize: 11,
+        fontWeight: 500,
+        color,
+        margin: "0 2px"
+    })
 
     const addSplit = () => {
         setTerms(prev => [
@@ -75,9 +116,55 @@ export default function Terminal({
 
     const deleteTerminal = () => {
         if (terms.length === 1) return
-        setTerms(prev => prev.filter((_, i) => i !== activeIndex))
-        setActiveIndex(0)
+
+        const deletedTerm = terms[activeIndex]
+
+        setTerms(prev => {
+            const next = prev.filter((_, i) => i !== activeIndex)
+
+            // ✅ If we deleted the "main" terminal (log receiver), promote
+            // the first remaining terminal so server logs keep showing.
+            if (deletedTerm.type === "main") {
+                next[0] = { ...next[0], type: "main" }
+            }
+
+            return next
+        })
+
+        setActiveIndex(prev => Math.max(0, prev - 1))
     }
+
+    // ✅ Called by startDevServer's detection loop when npm exits
+    const handleServerStopped = useCallback(() => {
+        setServerState("stopped")
+        onProcessChange?.(null)
+    }, [onProcessChange])
+
+    // ✅ Stop: sends \x03 into jsh stdin — same as Ctrl+C in terminal
+    const handleStop = useCallback(async () => {
+        await killDevServer()
+        // State will update via handleServerStopped callback when
+        // the detection loop sees the prompt return — no optimistic setState
+        // needed, but set it anyway for instant UI feedback
+        setServerState("stopped")
+        onProcessChange?.(null)
+    }, [onProcessChange])
+
+    // ✅ Start: re-runs flow with skipInstall=true — only runs npm run dev
+    const handleStart = useCallback(async () => {
+        if (!webcontainer) return
+        setServerState("running")
+        await startDevServer(
+            webcontainer,
+            (data) => onLogsChange?.(data),
+            (proc) => {
+                onProcessChange?.(proc)
+                if (proc) setServerState("running")
+            },
+            handleServerStopped,
+            true   // ✅ skipInstall — deps already installed
+        )
+    }, [webcontainer, onProcessChange, onLogsChange, handleServerStopped])
 
     return (
         <div style={{
@@ -89,8 +176,9 @@ export default function Terminal({
         }}>
 
             {/* HEADER */}
-            <div style={{ display: "flex", borderBottom: `1px solid ${ui.border}` }}>
+            <div style={{ display: "flex", borderBottom: `1px solid ${ui.border}`, alignItems: "center" }}>
 
+                {/* TABS */}
                 <div style={{ flex: 1, display: "flex", overflowX: "auto" }}>
                     {terms.map((term, i) => (
                         <div
@@ -106,7 +194,7 @@ export default function Terminal({
                                 gap: 6,
                                 borderBottom: activeIndex === i
                                     ? `2px solid ${accent}`
-                                    : "transparent",
+                                    : "2px solid transparent",
                                 color: editorFg
                             }}
                         >
@@ -120,18 +208,53 @@ export default function Terminal({
                 </div>
 
                 {/* TOOLBAR */}
-                <div style={{ display: "flex", gap: 4 }}>
-                    <button onClick={() => setFullscreen(!fullscreen)} style={buttonStyle}>
-                        {fullscreen ? <Minimize size={16} /> : <Expand size={16} />}
+                <div style={{ display: "flex", alignItems: "center", paddingRight: 4 }}>
+
+                    {/* SERVER STATUS BUTTON — only when webcontainer is ready */}
+                    {serverState === "running" && (
+                        <button
+                            onClick={handleStop}
+                            title="Stop dev server"
+                            style={serverButtonStyle("#f87171")}
+                        >
+                            <StopCircle size={13} />
+                            Stop
+                        </button>
+                    )}
+
+                    {serverState === "stopped" && (
+                        <button
+                            onClick={handleStart}
+                            title="Start dev server"
+                            style={serverButtonStyle("#4ade80")}
+                        >
+                            <PlayCircle size={13} />
+                            Start
+                        </button>
+                    )}
+
+                    {/* booting → render nothing for the server button */}
+
+                    {serverState !== "booting" && (
+                        <div style={{
+                            width: 1,
+                            height: 14,
+                            background: ui.border,
+                            margin: "0 4px"
+                        }} />
+                    )}
+
+                    <button onClick={() => setFullscreen(!fullscreen)} style={iconButtonStyle}>
+                        {fullscreen ? <Minimize size={15} /> : <Expand size={15} />}
                     </button>
 
-                    <button onClick={addSplit} style={buttonStyle}>
-                        <SquareSplitHorizontal size={16} />
+                    <button onClick={addSplit} style={iconButtonStyle}>
+                        <SquareSplitHorizontal size={15} />
                     </button>
 
                     {terms.length > 1 && (
-                        <button onClick={deleteTerminal} style={buttonStyle}>
-                            <Trash2 size={16} />
+                        <button onClick={deleteTerminal} style={iconButtonStyle}>
+                            <Trash2 size={15} />
                         </button>
                     )}
                 </div>
@@ -193,14 +316,13 @@ function TerminalInstance({
     const termRef = useRef(null)
     const fitAddonRef = useRef(null)
 
-    // ✅ Ref so onData always sees current isActive without stale closure
     const isActiveRef = useRef(isActive)
-    useEffect(() => {
-        isActiveRef.current = isActive
-    }, [isActive])
+    useEffect(() => { isActiveRef.current = isActive }, [isActive])
 
     const lastIndexRef = useRef(0)
     const attachedRef = useRef(false)
+    // ✅ Bumped when this terminal is promoted to "main" so the log effect re-fires
+    const [logFlush, setLogFlush] = useState(0)
 
     const {
         terminalFontSize,
@@ -212,22 +334,12 @@ function TerminalInstance({
         lineHeight
     } = useSettingsStore()
 
-    /*
-    =========================
-    🔥 LOAD FONT
-    =========================
-    */
     useEffect(() => {
         loadFont(terminalFontFamily, terminalFontWeight, terminalFontItalic)
     }, [terminalFontFamily, terminalFontWeight, terminalFontItalic])
 
-    /*
-    =========================
-    TERMINAL INIT
-    =========================
-    */
+    /* TERMINAL INIT */
     useEffect(() => {
-
         const term = new XTerm({
             fontSize: terminalFontSize,
             fontFamily: `"${terminalFontFamily}", monospace`,
@@ -236,141 +348,85 @@ function TerminalInstance({
             lineHeight,
             cursorBlink,
             scrollback,
-            theme: {
-                background: editorBg,
-                foreground: editorFg
-            }
+            theme: { background: editorBg, foreground: editorFg }
         })
 
         const fitAddon = new FitAddon()
         term.loadAddon(fitAddon)
-
         term.open(containerRef.current)
 
         termRef.current = term
         fitAddonRef.current = fitAddon
 
         setTimeout(() => fitAddon.fit(), 50)
-
         lastIndexRef.current = 0
 
-        const resizeObserver = new ResizeObserver(() => {
-            fitAddon.fit()
-        })
+        const ro = new ResizeObserver(() => fitAddon.fit())
+        ro.observe(containerRef.current)
 
-        resizeObserver.observe(containerRef.current)
-
-        return () => {
-            resizeObserver.disconnect()
-            term.dispose()
-        }
+        return () => { ro.disconnect(); term.dispose() }
 
     }, [
-        terminalFontSize,
-        terminalFontFamily,
-        terminalFontWeight,
-        terminalFontItalic,
-        cursorBlink,
-        scrollback,
-        lineHeight,
-        editorBg,
-        editorFg
+        terminalFontSize, terminalFontFamily, terminalFontWeight,
+        terminalFontItalic, cursorBlink, scrollback, lineHeight,
+        editorBg, editorFg
     ])
 
-    /*
-    =========================
-    RESIZE — also forward to shell process so PTY cols/rows stay in sync
-    =========================
-    */
+    /* RESIZE */
     useEffect(() => {
         if (!fitAddonRef.current) return
-
         const t = setTimeout(() => {
             fitAddonRef.current.fit()
-
-            // ✅ Resize the jsh PTY to match xterm dimensions
             if (process?.resize && termRef.current) {
-                try {
-                    process.resize(termRef.current.cols, termRef.current.rows)
-                } catch { }
+                try { process.resize(termRef.current.cols, termRef.current.rows) } catch { }
             }
         }, 80)
-
         return () => clearTimeout(t)
-
     }, [fullscreen, isActive, process])
 
-    /*
-    =========================
-    LOG STREAM (main terminal only)
-    Reads new chunks from the accumulated `logs` string and writes
-    them to xterm. Strips __STATUS__ control lines before display.
-    =========================
-    */
+    /* PROMOTION: when this terminal is promoted to "main" (e.g. the original
+       main terminal was deleted), immediately write all existing logs so the
+       user doesn't see a blank terminal while the server is running. */
     useEffect(() => {
+        if (type !== "main") return
+        lastIndexRef.current = 0          // rewind so full log history is written
+        setLogFlush(n => n + 1)           // force the log effect to re-fire
+    }, [type]) // eslint-disable-line react-hooks/exhaustive-deps
 
+    /* LOG STREAM — only the "main" terminal shows server logs */
+    useEffect(() => {
         if (type !== "main") return
         if (!logs || !termRef.current) return
 
-        const term = termRef.current
-
-        // Handle reset (e.g. project reload clears logs)
-        if (logs.length < lastIndexRef.current) {
-            lastIndexRef.current = 0
-        }
+        if (logs.length < lastIndexRef.current) lastIndexRef.current = 0
 
         const newData = logs.slice(lastIndexRef.current)
         lastIndexRef.current = logs.length
-
         if (!newData) return
 
-        // ✅ Strip __STATUS__:... control lines — they are for app state only,
-        // not for display. Replace the whole line including surrounding \r\n.
         const filtered = newData.replace(/\r?\n?__STATUS__:[^\r\n]*\r?\n?/g, "")
+        if (filtered) termRef.current.write(filtered)
 
-        if (filtered) {
-            term.write(filtered)
-        }
+    }, [logs, logFlush])
 
-    }, [logs])
-
-    /*
-    =========================
-    PROCESS INPUT (main terminal)
-
-    Now that startDevServer spawns a `jsh` PTY (same as the split shell),
-    this effect is straightforward: every keystroke goes straight to the
-    shell's stdin.
-
-    Ctrl+C (\x03) is passed through unchanged — jsh receives it, sends
-    SIGINT to the foreground process (npm install / npm run dev), and
-    automatically returns its own prompt when the child exits.
-    No manual kill() or fallback shell needed.
-    =========================
-    */
+    /* PROCESS INPUT (main terminal)
+       ✅ terminal gets its OWN writer — separate from signalWriter in startDevServer.
+       Both writers coexist on jsh stdin without conflict. */
     useEffect(() => {
-
         if (type !== "main") return
         if (!process || !termRef.current) return
         if (attachedRef.current) return
 
         attachedRef.current = true
-
         let writer
 
         const disposable = termRef.current.onData(async (data) => {
-
-            // Only the active (focused) terminal pane sends input
             if (!isActiveRef.current) return
-
             try {
                 if (!writer) {
-                    // jsh always has a writable stdin — this will succeed
                     if (!process?.input) return
                     writer = process.input.getWriter()
                 }
-                // Forward ALL keystrokes including \x03 (Ctrl+C) to jsh.
-                // The shell's PTY layer handles SIGINT, echo, line discipline.
                 await writer.write(data)
             } catch (err) {
                 console.error("[terminal input error]", err)
@@ -382,47 +438,29 @@ function TerminalInstance({
             try { writer?.releaseLock() } catch { }
             attachedRef.current = false
         }
-
     }, [process])
 
-    /*
-    =========================
-    SHELL MODE (split terminals)
-    Identical to before — spawn jsh and connect stdin/stdout directly.
-    =========================
-    */
+    /* SHELL MODE (split terminals) */
     useEffect(() => {
-
         if (type !== "shell") return
         if (!webcontainer || !termRef.current) return
 
         const startShell = async () => {
-
             const term = termRef.current
-
             const shell = await webcontainer.spawn("jsh", {
                 terminal: { cols: term.cols, rows: term.rows }
             })
-
-            shell.output.pipeTo(
-                new WritableStream({
-                    write(data) {
-                        term.write(data)
-                    }
-                })
-            )
-
+            shell.output.pipeTo(new WritableStream({
+                write(data) { term.write(data) }
+            }))
             const writer = shell.input.getWriter()
             term.onData(data => writer.write(data))
-
-            // Keep PTY size in sync for split shells too
             term.onResize(({ cols, rows }) => {
                 try { shell.resize?.(cols, rows) } catch { }
             })
         }
 
         startShell()
-
     }, [webcontainer])
 
     return (

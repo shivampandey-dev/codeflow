@@ -1,14 +1,47 @@
-let shellInstance = null   // the persistent jsh shell
+let shellInstance = null
 let installing = false
+let signalWriter = null
+let onStopCallback = null
+let depsInstalled = false   // ✅ flips true only when "added X packages" is seen
 
 export async function startDevServer(
     webcontainer,
     onOutput,
-    onProcessChange
+    onProcessChange,
+    onServerStop,
+    skipInstall = false
 ) {
+    // ✅ RESTART: jsh is still alive after Ctrl+C (only npm died).
+    // Decide command based on whether npm install actually completed.
+    if (shellInstance && signalWriter && skipInstall) {
+        onStopCallback = onServerStop
+        const writeStatus = (tag) => onOutput?.(`\r\n__STATUS__:${tag}\r\n`)
+        const write = (data) => onOutput?.(data)
+        try {
+            if (depsInstalled) {
+                // ✅ install completed before — just start the server
+                writeStatus("starting_server")
+                write("\r\n🚀 Starting dev server...\r\n")
+                await signalWriter.write("npm run dev\n")
+            } else {
+                // ⚠️ install was interrupted — must reinstall first
+                writeStatus("installing_deps")
+                write("\r\n⚠️  Previous install was incomplete — reinstalling...\r\n")
+                await signalWriter.write("npm install && npm run dev\n")
+            }
+        } catch (err) {
+            console.error("[restart error]", err)
+        }
+        onProcessChange?.(shellInstance)
+        return shellInstance
+    }
+
     if (shellInstance) return shellInstance
     if (installing) return
     installing = true
+
+    depsInstalled = false   // reset for this boot session
+    onStopCallback = onServerStop
 
     const writeStatus = (tag) => onOutput?.(`\r\n__STATUS__:${tag}\r\n`)
     const write = (data) => onOutput?.(data)
@@ -16,7 +49,7 @@ export async function startDevServer(
     const decode = (v) => typeof v === "string" ? v : decoder.decode(v)
 
     try {
-        /* -------- FS PREP (no shell needed) -------- */
+        /* -------- FS PREP -------- */
         writeStatus("preparing_workspace")
         write("\r\n🚀 Preparing workspace...\r\n")
 
@@ -29,28 +62,24 @@ export async function startDevServer(
             } catch { }
         }
 
-        /* -------- SPAWN JSH (PTY shell — same as split terminal) -------- */
+        /* -------- SPAWN JSH -------- */
         const shell = await webcontainer.spawn("jsh", {
             terminal: { cols: 80, rows: 24 }
         })
-
         shellInstance = shell
 
         /* -------- TEE OUTPUT -------- */
-        // We need two consumers: terminal display + status detection.
-        // ReadableStream.tee() splits into two independent streams.
         const [outForTerminal, outForDetection] = shell.output.tee()
 
-        // Branch 1 → forward raw output to logs (terminal reads from logs)
         outForTerminal.pipeTo(new WritableStream({
             write(chunk) { write(decode(chunk)) }
         }))
 
-            // Branch 2 → watch output for install/server-ready milestones
             ; (async () => {
                 const reader = outForDetection.getReader()
                 let installFlagged = false
                 let serverFlagged = false
+                let serverWasRunning = false
 
                 while (true) {
                     const { value, done } = await reader.read()
@@ -59,58 +88,88 @@ export async function startDevServer(
 
                     if (!installFlagged && /added \d+ package/i.test(text)) {
                         installFlagged = true
+                        depsInstalled = true   // ✅ mark install as complete
                         writeStatus("starting_server")
                         write("\r\n🚀 Starting dev server...\r\n")
                     }
 
                     if (!serverFlagged && (/Local:\s+http/i.test(text) || /ready in/i.test(text))) {
                         serverFlagged = true
+                        serverWasRunning = true
                         writeStatus("server_ready")
                         write("\r\n🟢 Dev Server Ready!\r\n")
                     }
+
+                    // ✅ Detect when npm exits and jsh prompt returns
+                    // After server was running, if we see the shell prompt again
+                    // it means the foreground process (npm) has stopped.
+                    if (serverWasRunning && /[❯>$]\s*$/.test(
+                        text.replace(/\x1b\[[0-9;]*[mGKHF]/g, "").trimEnd()
+                    )) {
+                        serverWasRunning = false
+                        serverFlagged = false
+                        writeStatus("server_stopped")
+                        onStopCallback?.()
+                    }
                 }
 
-                // Shell exited — clean up
                 shellInstance = null
+                signalWriter = null
+                depsInstalled = false   // shell is gone — next boot must reinstall
                 onProcessChange?.(null)
+                onStopCallback?.()
             })()
 
-        // ✅ FIX: Prompt detection via regex fails because jsh wraps its prompt
-        // in ANSI color codes — the text chunk never ends with a bare `>` or `❯`.
-        // A 500ms timeout is simpler and reliable: jsh is always ready well within
-        // that window after spawn().
+        /* -------- WAIT FOR SHELL READY THEN SEND COMMAND -------- */
         await new Promise(resolve => setTimeout(resolve, 500))
 
-        writeStatus("installing_deps")
-        write("\r\n📦 Installing dependencies...\r\n")
+        if (skipInstall) {
+            // ✅ Restart: deps already installed, just start the server
+            writeStatus("starting_server")
+            write("\r\n🚀 Starting dev server...\r\n")
+            signalWriter = shell.input.getWriter()
+            await signalWriter.write("cd workspace && npm run dev\n")
+        } else {
+            // First boot: install then start
+            writeStatus("installing_deps")
+            write("\r\n📦 Installing dependencies...\r\n")
+            signalWriter = shell.input.getWriter()
+            await signalWriter.write("cd workspace && npm install && npm run dev\n")
+        }
 
-        // ✅ FIX: webcontainer.fs root (`/`) maps to jsh's home dir, so
-        // `webcontainer.fs.mkdir("/workspace")` creates ~/workspace in the shell.
-        // Use `~/workspace` (not `/workspace`) to match what jsh actually sees.
-        const cmdWriter = shell.input.getWriter()
-        // ✅ FIX: In WebContainer jsh, `~` expands to /home/workspace (wrong).
-        // The shell starts in the container home dir which already contains
-        // `workspace/` as a direct child — use a plain relative path.
-        await cmdWriter.write("cd workspace && npm install && npm run dev\n")
-        cmdWriter.releaseLock()  // release so terminal can acquire writer on keypress
-
-        // Hand shell to terminal
         onProcessChange?.(shell)
 
     } catch (err) {
         write(`\r\n❌ Error starting dev server:\r\n${err}\r\n`)
         shellInstance = null
+        signalWriter = null
     }
 
     installing = false
     return shellInstance
 }
 
+// ✅ Send Ctrl+C to the foreground process inside jsh — same as pressing ^C in terminal
+export async function killDevServer() {
+    if (!signalWriter) return false
+    try {
+        await signalWriter.write("\x03")   // SIGINT → kills npm, jsh stays alive
+    } catch { }
+    return true
+}
+
 export function resetDevServer() {
+    try { signalWriter?.releaseLock() } catch { }
     shellInstance = null
+    signalWriter = null
     installing = false
+    depsInstalled = false
 }
 
 export function getCurrentProcess() {
     return shellInstance
+}
+
+export function isServerRunning() {
+    return shellInstance !== null
 }
