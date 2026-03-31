@@ -19,67 +19,43 @@ export default function CTAButtons() {
 
     const isBelow720 = useMediaQuery("(max-width: 720px)");
     const isBelow450 = useMediaQuery("(max-width: 450px)");
-    const columns = isBelow720 ? 1 : 2;
 
-    /* ================= REVEAL ================= */
     useEffect(() => {
         const observer = new IntersectionObserver(
-            ([entry]) => {
-                if (entry.isIntersecting) setVisible(true);
-            },
+            ([entry]) => { if (entry.isIntersecting) setVisible(true); },
             { threshold: 0.25 }
         );
         if (ref.current) observer.observe(ref.current);
         return () => observer.disconnect();
     }, []);
 
-    /* ================= UPLOAD HANDLER ================= */
     const handleUpload = async ({ type, file, files }) => {
-        // Boot WebContainer early so it's ready by the time workspace loads
-        let wc;
+        let wc; 
         try {
             wc = await bootWebContainer();
         } catch (err) {
-            console.error("Failed to boot WebContainer:", err);
             alert("Failed to initialize editor environment. Please refresh.");
             return;
         }
-
-        // Parse upload into WebContainer file tree
         let result;
         try {
-            if (type === "zip") {
-                result = await zipFileToTree(file);
-            } else if (type === "folder") {
-                result = await folderFilesToTree(files);
-            }
+            if (type === "zip") result = await zipFileToTree(file);
+            else if (type === "folder") result = await folderFilesToTree(files);
         } catch (err) {
-            console.error("Failed to parse upload:", err);
             alert("Failed to read the uploaded files. Please try again.");
             return;
         }
-
         const { tree, warnings, hasPackageJson } = result;
-
-        if (warnings.length) {
-            console.warn("Skipped files:\n", warnings.join("\n"));
-        }
-
+        if (warnings.length) console.warn("Skipped files:\n", warnings.join("\n"));
         if (!hasPackageJson) {
             alert("No package.json found. Please upload a valid Node.js project.");
             return;
         }
-
-        // Mount files into the already-booted WebContainer
-        await wc.mount(tree);
-
-        // Save tree to store so Workspace can access it
         setUploadedTree(tree);
-
+        await wc.mount(tree);
         setOpenUpload(false);
-
-        // Navigate to workspace — Workspace.jsx will detect templateId === "uploaded"
-        navigate("/workspace/uploaded");
+        window.uploadedTree = tree;
+        window.open("/workspace/uploaded", "_blank");
     };
 
     return (
@@ -91,105 +67,97 @@ export default function CTAButtons() {
                     maxWidth: 1100,
                     margin: "0 auto",
                     paddingInline: "clamp(16px, 5vw, 48px)",
+                    paddingTop: "clamp(40px, 8vh, 80px)",
                     display: "flex",
                     flexDirection: "column",
-                    alignItems: "center",
+                    alignItems: "center",   /* ← keeps all children centered */
                     opacity: visible ? 1 : 0,
-                    transform: visible
-                        ? "translate3d(0,0,0)"
-                        : "translate3d(0,40px,0)",
-                    transition:
-                        "opacity 0.8s ease, transform 0.8s cubic-bezier(.16,1,.3,1)",
+                    transform: visible ? "translate3d(0,0,0)" : "translate3d(0,40px,0)",
+                    transition: "opacity 0.8s ease, transform 0.8s cubic-bezier(.16,1,.3,1)",
                     marginBottom: isBelow450 ? 10 : 20,
                 }}
             >
-                {/* TEXT */}
-                <Box
-                    style={{
-                        textAlign: "center",
-                        maxWidth: 820,
-                        marginBottom: "clamp(24px, 5vw, 48px)",
-                    }}
-                >
+                {/* ── HEADLINE ── */}
+                <Box style={{ textAlign: "center", maxWidth: 760, marginBottom: "clamp(24px, 5vw, 48px)" }}>
                     <Text
                         style={{
-                            fontSize: "clamp(26px, 6vw, 64px)",
-                            fontWeight: 700,
-                            lineHeight: 1.2,
-                            color: "#e2e8f0",
+                            fontSize: 12, fontWeight: 600,
+                            letterSpacing: "0.14em", textTransform: "uppercase",
+                            color: "#38bdf8", marginBottom: 12, opacity: 0.85,
                         }}
                     >
-                        Faster and more{" "}
-                        <span className="gradient-text">secure</span>
-                        <br />
-                        than local.
+                        Start in seconds — no signup needed
                     </Text>
 
                     <Text
-                        mt={16}
                         style={{
-                            color: "#94a3b8",
-                            fontSize: "clamp(14px, 2.8vw, 18px)",
-                            maxWidth: 560,
-                            margin: "0 auto",
+                            fontSize: "clamp(28px, 5.5vw, 56px)",
+                            fontWeight: 800, lineHeight: 1.15,
+                            color: "#e2e8f0", letterSpacing: "-0.02em",
                         }}
                     >
-                        Codeflow runs your full development environment directly in
-                        the browser using isolated containers.
+                        Your browser is your{" "}
+                        <span className="gradient-text">dev environment.</span>
+                    </Text>
+
+                    <Text
+                        style={{
+                            color: "#7a8fa8",
+                            fontSize: "clamp(14px, 2.4vw, 17px)",
+                            maxWidth: 520, margin: "16px auto 0", lineHeight: 1.7,
+                        }}
+                    >
+                        Pick a template or drop in your existing project.
+                        Codeflow runs it instantly — fully isolated, completely private.
                     </Text>
                 </Box>
 
-                {/* CARDS */}
+                {/* ── ACTION CARDS ── */}
                 <Box
                     style={{
                         width: "100%",
-                        maxWidth: 900,
+                        maxWidth: 860,
                         paddingInline: 16,
                         display: "grid",
-                        gridTemplateColumns: isBelow720
-                            ? "1fr"
-                            : `repeat(${columns}, minmax(0, 1fr))`,
+                        gridTemplateColumns: isBelow720 ? "1fr" : "repeat(2, minmax(0, 1fr))",
                         gap: isBelow720 ? 16 : 24,
                     }}
                 >
-                    {/* CREATE PROJECT CARD */}
-                    <motion.div
-                        layoutId="create-project-card"
-                        onClick={() => setOpenCreate(true)}
-                    >
+                    <motion.div layoutId="create-project-card" onClick={() => setOpenCreate(true)}>
                         <GlassCard
                             icon={<IconBolt size={22} />}
-                            title="Start with a Template"
-                            desc="Choose from React, Node.js and more."
+                            title="Start from a Template"
+                            desc="React, Node.js, Vanilla JS and more — ready to code in one click."
                             button="New Project"
-                            gradient="linear-gradient(135deg,#14b8a6,#0ea5e9)"
+                            gradient="linear-gradient(135deg, #0ea5e9, #14b8a6)"
                         />
                     </motion.div>
 
-                    {/* UPLOAD PROJECT CARD */}
-                    <motion.div
-                        layoutId="upload-project-card"
-                        onClick={() => setOpenUpload(true)}
-                    >
+                    <motion.div layoutId="upload-project-card" onClick={() => setOpenUpload(true)}>
                         <GlassCard
                             icon={<IconUpload size={22} />}
-                            title="Upload Your Project"
-                            desc="Open any local folder or ZIP archive."
-                            button="Upload Folder"
-                            gradient="linear-gradient(135deg,#6366f1,#8b5cf6)"
+                            title="Bring Your Own Project"
+                            desc="Drag in a folder or ZIP archive — your files open instantly."
+                            button="Upload Project"
+                            gradient="linear-gradient(135deg, #6366f1, #8b5cf6)"
                         />
                     </motion.div>
                 </Box>
+
+                {/*
+                 * ── TRUST LINE ──
+                 * FIX: was left-aligned on mobile because the parent flexbox
+                 * shrink-wrapped it. Now it has explicit width + textAlign.
+                 * "100 %" typo (space before %) also removed.
+                 */}
+
             </Box>
 
-            {/* CREATE MODAL */}
             <CreateProjectModal
                 opened={openCreate}
                 onClose={() => setOpenCreate(false)}
                 layoutId="create-project-card"
             />
-
-            {/* UPLOAD MODAL */}
             <UploadProjectModal
                 opened={openUpload}
                 onClose={() => setOpenUpload(false)}
@@ -200,7 +168,7 @@ export default function CTAButtons() {
     );
 }
 
-/* ================= CARD ================= */
+/* ── GLASS CARD ── */
 function GlassCard({ icon, title, desc, button, gradient }) {
     const isMobile = useMediaQuery("(max-width: 720px)");
     const [hovered, setHovered] = useState(false);
@@ -211,65 +179,54 @@ function GlassCard({ icon, title, desc, button, gradient }) {
             onMouseLeave={() => setHovered(false)}
             style={{
                 width: "100%",
-                padding: "clamp(16px, 4vw, 22px)",
+                padding: "clamp(20px, 4vw, 26px)",
                 borderRadius: 18,
                 cursor: "pointer",
                 background: "rgba(15, 23, 42, 0.55)",
                 backdropFilter: isMobile ? "blur(8px)" : "blur(14px)",
                 border: hovered
-                    ? "1px solid rgba(99,102,241,0.6)"
-                    : "1px solid rgba(255,255,255,0.08)",
+                    ? "1px solid rgba(99,102,241,0.55)"
+                    : "1px solid rgba(255,255,255,0.07)",
                 boxShadow: hovered
-                    ? `0 0 60px rgba(99,102,241,0.35), 0 25px 80px rgba(0,0,0,0.7)`
-                    : `0 0 40px rgba(59,130,246,0.12), 0 20px 60px rgba(0,0,0,0.6)`,
+                    ? "0 0 60px rgba(99,102,241,0.30), 0 25px 80px rgba(0,0,0,0.7)"
+                    : "0 0 30px rgba(59,130,246,0.08), 0 20px 60px rgba(0,0,0,0.5)",
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
-                minHeight: 200,
-                transform: hovered
-                    ? "translateY(-6px) scale(1.02)"
-                    : "translateY(0px) scale(1)",
+                minHeight: 210,
+                transform: hovered ? "translateY(-6px) scale(1.015)" : "translateY(0px) scale(1)",
                 transition: "all 0.35s cubic-bezier(.16,1,.3,1)",
             }}
         >
             <Box
                 style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: "50%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
+                    width: 46, height: 46, borderRadius: "50%",
+                    display: "flex", alignItems: "center", justifyContent: "center",
                     background: "rgba(255,255,255,0.06)",
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    color: "#fff",
-                    marginBottom: 14,
-                    transform: hovered ? "scale(1.15)" : "scale(1)",
+                    border: "1px solid rgba(255,255,255,0.10)",
+                    color: "#fff", marginBottom: 16,
+                    transform: hovered ? "scale(1.12)" : "scale(1)",
                     transition: "transform 0.3s ease",
                 }}
             >
                 {icon}
             </Box>
 
-            <Text style={{ color: "#e2e8f0", fontSize: 18, fontWeight: 600 }}>
+            <Text style={{ color: "#e2e8f0", fontSize: 18, fontWeight: 700, letterSpacing: "-0.01em" }}>
                 {title}
             </Text>
-
-            <Text style={{ color: "#94a3b8", fontSize: 13, marginTop: 6, marginBottom: 18 }}>
+            <Text style={{ color: "#7a8fa8", fontSize: 13.5, marginTop: 8, marginBottom: 20, lineHeight: 1.6 }}>
                 {desc}
             </Text>
 
             <Box
                 style={{
-                    minHeight: 42,
-                    borderRadius: 10,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    background: gradient,
-                    color: "#fff",
-                    fontWeight: 600,
-                    fontSize: 14,
+                    minHeight: 44, borderRadius: 10,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    background: gradient, color: "#fff",
+                    fontWeight: 600, fontSize: 14, letterSpacing: "0.02em",
+                    boxShadow: hovered ? "0 6px 24px rgba(0,0,0,0.35)" : "none",
+                    transition: "box-shadow 0.3s ease",
                 }}
             >
                 {button}

@@ -1,98 +1,80 @@
+/* ── STANDALONE (not used currently but kept for safety) ── */
 .heroWrapper {
     position: absolute;
-
-    /* PERFECT POSITION */
-    top: 33%;
     left: 50%;
-    transform: translate(-50%, -50%);
-
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 860px;
+    padding: 0 clamp(16px, 5vw, 40px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     text-align: center;
-    z-index: 15;
+    z-index: 5;
     pointer-events: none;
-
-    max-width: 700px;
+top: clamp(30%, 30vh, 36%);
 }
 
 
-/* MAIN TITLE */
+.heroWrapper--embedded {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    width: 100%;
+    pointer-events: none;
+    gap: 4px;
+}
 
+/* ── TITLE ── */
 .heroTitle {
-    font-family: "Inter", "Space Grotesk", sans-serif;
-
-    font-weight: 500;
-    font-size: 36px;
-
-    line-height: 1.1;
-    letter-spacing: -1.2px;
-
-    color: rgba(255, 255, 255, 0.92);
-
     margin: 0;
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: #f1f5f9;
+    font-size: clamp(14px, 1.8vw, 22px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0px;
 }
 
-
-/* GRADIENT ACCENT WORD */
-
+/* ── GRADIENT ACCENT on "faster." ── */
 .heroAccent {
-    background: linear-gradient(90deg,
-            #7dd3fc,
-            #a78bfa,
-            #22d3ee);
-
-    background-size: 200% 200%;
-
+    background: linear-gradient(90deg, #a78bfa, #38bdf8, #a78bfa);
+    background-size: 200% auto;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-
-    animation: gradientShift 6s ease infinite;
+    background-clip: text;
+    animation: accentShimmer 5s linear infinite;
 }
 
+@keyframes accentShimmer {
+    to {
+        background-position: 200% center;
+    }
+}
 
-/* rotating subtitle */
-
+/* ── SUBTITLE ── */
 .heroDynamic {
-    margin-top: 14px;
-
-    font-family: "Inter", sans-serif;
-
-    font-weight: 500;
-    font-size: 20px;
-
-    letter-spacing: 0.2px;
-
-    color: rgba(255, 255, 255, 0.45);
-
-    transition: all .35s ease;
+    margin: 4px 0 0;
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    font-weight: 400;
+    line-height: 1.5;
+    color: #7a8fa8;
+    font-size: clamp(9px, 1vw, 12px);
+    max-width: 340px;
+    transition: opacity 0.25s ease, transform 0.25s ease;
 }
-
-
-/* animation */
 
 .fadeIn {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0px);
 }
 
 .fadeOut {
     opacity: 0;
-    transform: translateY(8px);
-}
-
-
-/* subtle gradient movement */
-
-@keyframes gradientShift {
-
-    0% {
-        background-position: 0% 50%;
-    }
-
-    50% {
-        background-position: 100% 50%;
-    }
-
-    100% {
-        background-position: 0% 50%;
-    }
-
+    transform: translateY(5px);
 }

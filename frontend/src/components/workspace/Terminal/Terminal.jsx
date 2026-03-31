@@ -19,13 +19,18 @@ import {
 import { useSettingsStore } from "../../../store/settingsStore"
 import { deriveUIColors } from "../../../utils/themeColors"
 import { loadFont } from "../../../utils/loadFont"
+
 import {
     startDevServer,
     killDevServer,
     isServerRunning
 } from "../../../pages/runtime/webcontainer/startDevServer"
 
-/* ================= MAIN ================= */
+import {
+    startBackendServer,
+    killBackendServer,
+    isBackendServerRunning
+} from "../../../pages/runtime/webcontainer/startBackendServer"
 
 export default function Terminal({
     process,
@@ -34,9 +39,9 @@ export default function Terminal({
     fullscreen,
     setFullscreen,
     onProcessChange,
-    onLogsChange
+    onLogsChange,
+    isBackend = false
 }) {
-
     const { themeData } = useSettingsStore()
 
     const editorBg = themeData?.colors?.["editor.background"] || "#1e1e1e"
@@ -45,33 +50,41 @@ export default function Terminal({
     const ui = deriveUIColors(editorBg)
     const accent = "#38bdf8"
 
-    const [terms, setTerms] = useState([
-        {
-            id: crypto.randomUUID(),
-            type: "main",
-            name: "npm dev",
-            color: "#22c55e"
-        }
-    ])
+    const killServer = isBackend ? killBackendServer : killDevServer
+    const startServer = isBackend ? startBackendServer : startDevServer
+    const tabLabel = isBackend ? "server" : "npm dev"
+    const tabColor = isBackend ? "#fb923c" : "#22c55e"
 
+    const [terms, setTerms] = useState([
+        { id: crypto.randomUUID(), type: "main", name: tabLabel, color: tabColor }
+    ])
     const [activeIndex, setActiveIndex] = useState(0)
 
     // "booting" | "stopped" | "running"
     const [serverState, setServerState] = useState("booting")
 
-    // Transition out of booting once webcontainer is ready
+    // ── FIXED: always start in booting ────────────────────────────────────────
     useEffect(() => {
-        if (!webcontainer) {
-            setServerState("booting")
-            return
-        }
-        setServerState(isServerRunning() ? "running" : "stopped")
+        setServerState("booting")
+    }, [])
+
+    // ── FIXED: webcontainer ready — stay in booting, don't check serverIsUp() ─
+    // serverIsUp() is false during install which wrongly showed the Start button
+    useEffect(() => {
+        if (!webcontainer) setServerState("booting")
     }, [webcontainer])
 
-    // Sync button when process prop changes from outside
+    // ── FIXED: only transition based on process arriving/leaving ─────────────
+    // "stopped" only appears AFTER "running" — never before it
     useEffect(() => {
         if (!webcontainer) return
-        setServerState(process ? "running" : "stopped")
+        if (process) {
+            setServerState("running")
+        } else if (serverState === "running") {
+            // Was running, now process is gone → show Start button
+            setServerState("stopped")
+        }
+        // If still "booting", process=null is normal during install — ignore it
     }, [process, webcontainer])
 
     const isMobile = useMediaQuery("(max-width:768px)")
@@ -101,60 +114,46 @@ export default function Terminal({
         margin: "0 2px"
     })
 
+    // ── TAB ACTIONS ────────────────────────────────────────────────────────────
+
     const addSplit = () => {
         setTerms(prev => [
             ...prev,
-            {
-                id: crypto.randomUUID(),
-                type: "shell",
-                name: "bash",
-                color: "#38bdf8"
-            }
+            { id: crypto.randomUUID(), type: "shell", name: "bash", color: "#38bdf8" }
         ])
         setActiveIndex(terms.length)
     }
 
     const deleteTerminal = () => {
         if (terms.length === 1) return
-
         const deletedTerm = terms[activeIndex]
-
         setTerms(prev => {
             const next = prev.filter((_, i) => i !== activeIndex)
-
-            // ✅ If we deleted the "main" terminal (log receiver), promote
-            // the first remaining terminal so server logs keep showing.
             if (deletedTerm.type === "main") {
                 next[0] = { ...next[0], type: "main" }
             }
-
             return next
         })
-
         setActiveIndex(prev => Math.max(0, prev - 1))
     }
 
-    // ✅ Called by startDevServer's detection loop when npm exits
+    // ── SERVER CONTROL ─────────────────────────────────────────────────────────
+
     const handleServerStopped = useCallback(() => {
         setServerState("stopped")
         onProcessChange?.(null)
     }, [onProcessChange])
 
-    // ✅ Stop: sends \x03 into jsh stdin — same as Ctrl+C in terminal
     const handleStop = useCallback(async () => {
-        await killDevServer()
-        // State will update via handleServerStopped callback when
-        // the detection loop sees the prompt return — no optimistic setState
-        // needed, but set it anyway for instant UI feedback
+        await killServer()
         setServerState("stopped")
         onProcessChange?.(null)
-    }, [onProcessChange])
+    }, [killServer, onProcessChange])
 
-    // ✅ Start: re-runs flow with skipInstall=true — only runs npm run dev
     const handleStart = useCallback(async () => {
         if (!webcontainer) return
         setServerState("running")
-        await startDevServer(
+        await startServer(
             webcontainer,
             (data) => onLogsChange?.(data),
             (proc) => {
@@ -162,9 +161,11 @@ export default function Terminal({
                 if (proc) setServerState("running")
             },
             handleServerStopped,
-            true   // ✅ skipInstall — deps already installed
+            true    // skipInstall
         )
-    }, [webcontainer, onProcessChange, onLogsChange, handleServerStopped])
+    }, [webcontainer, startServer, onProcessChange, onLogsChange, handleServerStopped])
+
+    // ── RENDER ─────────────────────────────────────────────────────────────────
 
     return (
         <div style={{
@@ -174,10 +175,12 @@ export default function Terminal({
             background: ui.sidebarBg,
             minHeight: 0
         }}>
-
             {/* HEADER */}
-            <div style={{ display: "flex", borderBottom: `1px solid ${ui.border}`, alignItems: "center" }}>
-
+            <div style={{
+                display: "flex",
+                borderBottom: `1px solid ${ui.border}`,
+                alignItems: "center"
+            }}>
                 {/* TABS */}
                 <div style={{ flex: 1, display: "flex", overflowX: "auto" }}>
                     {terms.map((term, i) => (
@@ -210,11 +213,10 @@ export default function Terminal({
                 {/* TOOLBAR */}
                 <div style={{ display: "flex", alignItems: "center", paddingRight: 4 }}>
 
-                    {/* SERVER STATUS BUTTON — only when webcontainer is ready */}
                     {serverState === "running" && (
                         <button
                             onClick={handleStop}
-                            title="Stop dev server"
+                            title="Stop server"
                             style={serverButtonStyle("#f87171")}
                         >
                             <StopCircle size={13} />
@@ -225,7 +227,7 @@ export default function Terminal({
                     {serverState === "stopped" && (
                         <button
                             onClick={handleStart}
-                            title="Start dev server"
+                            title="Start server"
                             style={serverButtonStyle("#4ade80")}
                         >
                             <PlayCircle size={13} />
@@ -233,7 +235,7 @@ export default function Terminal({
                         </button>
                     )}
 
-                    {/* booting → render nothing for the server button */}
+                    {/* booting → no button shown */}
 
                     {serverState !== "booting" && (
                         <div style={{
@@ -260,7 +262,7 @@ export default function Terminal({
                 </div>
             </div>
 
-            {/* TERMINAL AREA */}
+            {/* TERMINAL PANES */}
             {isMobile ? (
                 <div style={{ flex: 1, minHeight: 0 }}>
                     {terms.map((term, idx) => (
@@ -299,7 +301,9 @@ export default function Terminal({
     )
 }
 
-/* ================= TERMINAL INSTANCE ================= */
+/* ─────────────────────────────────────────────────────────────────────────────
+   TERMINAL INSTANCE (one xterm pane)
+───────────────────────────────────────────────────────────────────────────── */
 
 function TerminalInstance({
     type,
@@ -311,7 +315,6 @@ function TerminalInstance({
     editorFg,
     fullscreen
 }) {
-
     const containerRef = useRef(null)
     const termRef = useRef(null)
     const fitAddonRef = useRef(null)
@@ -321,7 +324,6 @@ function TerminalInstance({
 
     const lastIndexRef = useRef(0)
     const attachedRef = useRef(false)
-    // ✅ Bumped when this terminal is promoted to "main" so the log effect re-fires
     const [logFlush, setLogFlush] = useState(0)
 
     const {
@@ -338,7 +340,7 @@ function TerminalInstance({
         loadFont(terminalFontFamily, terminalFontWeight, terminalFontItalic)
     }, [terminalFontFamily, terminalFontWeight, terminalFontItalic])
 
-    /* TERMINAL INIT */
+    // ── INIT XTERM ─────────────────────────────────────────────────────────────
     useEffect(() => {
         const term = new XTerm({
             fontSize: terminalFontSize,
@@ -365,14 +367,13 @@ function TerminalInstance({
         ro.observe(containerRef.current)
 
         return () => { ro.disconnect(); term.dispose() }
-
     }, [
         terminalFontSize, terminalFontFamily, terminalFontWeight,
         terminalFontItalic, cursorBlink, scrollback, lineHeight,
         editorBg, editorFg
     ])
 
-    /* RESIZE */
+    // ── RESIZE ─────────────────────────────────────────────────────────────────
     useEffect(() => {
         if (!fitAddonRef.current) return
         const t = setTimeout(() => {
@@ -384,16 +385,14 @@ function TerminalInstance({
         return () => clearTimeout(t)
     }, [fullscreen, isActive, process])
 
-    /* PROMOTION: when this terminal is promoted to "main" (e.g. the original
-       main terminal was deleted), immediately write all existing logs so the
-       user doesn't see a blank terminal while the server is running. */
+    // ── PROMOTION ──────────────────────────────────────────────────────────────
     useEffect(() => {
         if (type !== "main") return
-        lastIndexRef.current = 0          // rewind so full log history is written
-        setLogFlush(n => n + 1)           // force the log effect to re-fire
+        lastIndexRef.current = 0
+        setLogFlush(n => n + 1)
     }, [type]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    /* LOG STREAM — only the "main" terminal shows server logs */
+    // ── LOG STREAM ─────────────────────────────────────────────────────────────
     useEffect(() => {
         if (type !== "main") return
         if (!logs || !termRef.current) return
@@ -406,12 +405,9 @@ function TerminalInstance({
 
         const filtered = newData.replace(/\r?\n?__STATUS__:[^\r\n]*\r?\n?/g, "")
         if (filtered) termRef.current.write(filtered)
-
     }, [logs, logFlush])
 
-    /* PROCESS INPUT (main terminal)
-       ✅ terminal gets its OWN writer — separate from signalWriter in startDevServer.
-       Both writers coexist on jsh stdin without conflict. */
+    // ── KEYBOARD INPUT ─────────────────────────────────────────────────────────
     useEffect(() => {
         if (type !== "main") return
         if (!process || !termRef.current) return
@@ -440,7 +436,7 @@ function TerminalInstance({
         }
     }, [process])
 
-    /* SHELL MODE (split terminals) */
+    // ── SHELL MODE ─────────────────────────────────────────────────────────────
     useEffect(() => {
         if (type !== "shell") return
         if (!webcontainer || !termRef.current) return

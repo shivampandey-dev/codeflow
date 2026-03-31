@@ -1,4 +1,5 @@
 import { Box } from "@mantine/core";
+import { useEffect } from "react";
 import BackgroundLanding from "../../components/landing/BackgroundLanding";
 import CTAButtons from "../../components/landing/CTAButtons";
 import SectionNeuralBackground from "../../components/common/SectionNeuralBackground";
@@ -11,15 +12,22 @@ import TechFooter from "../../components/common/TechFooter";
 import CodeflowFeatures from "../../components/landing/CodeflowFeatures";
 
 export default function LandingPage() {
+    /* ── Dynamic browser tab title ── */
+    useEffect(() => {
+        document.title = "Codeflow — Code Instantly in Your Browser";
+        return () => {
+            document.title = "Codeflow";
+        };
+    }, []);
+
     return (
         <Box pos="relative">
-
-            {/* HERO SECTION */}
+            {/* ── HERO ── */}
             <Box pos="relative" mih="100vh">
                 <BackgroundLanding />
             </Box>
 
-            {/* CTA SECTION - responsive paddings */}
+            {/* ── BELOW-THE-FOLD CONTENT ── */}
             <Box
                 style={{
                     position: "relative",
@@ -27,63 +35,61 @@ export default function LandingPage() {
                     overflow: "hidden",
                     display: "flex",
                     justifyContent: "center",
-
                     paddingBlock: "clamp(40px, 12vh, 140px)",
                     paddingInline: "clamp(16px, 6vw, 60px)",
-
                     boxSizing: "border-box",
                     width: "100%",
                 }}
             >
-
-                {/* NEURAL BACKGROUND */}
+                {/* Subtle neural mesh */}
                 <SectionNeuralBackground />
 
-                {/* FADE OVERLAY */}
+                {/* Top-edge radial fade so hero bleeds into content */}
                 <Box
                     style={{
                         position: "absolute",
                         inset: 0,
-                        background: `
-                        radial-gradient(
-                            ellipse at top,
-                            rgba(59,130,246,0.12) 0%,
-                            rgba(1,2,5,1) 55%
-                        )
-                        `,
+                        background:
+                            "radial-gradient(ellipse at top, rgba(59,130,246,0.10) 0%, rgba(1,2,5,1) 55%)",
                         pointerEvents: "none",
                         zIndex: 1,
                     }}
                 />
 
-                {/* CONTENT */}
-                <Box
-                    style={{
-                        position: "relative",
-                        zIndex: 2,
-                        width: "100%",
-                    }}
-                >
+                <Box style={{ position: "relative", zIndex: 2, width: "100%" }}>
 
-                    {/* WHAT CODEFLOW DOES */}
+                    {/* SECTION 1 — live coding demo */}
+                    {/* "See your code run as you type — no installs, no setup." */}
                     <CodeTransformSection />
 
-                    {/* MAIN FEATURES */}
+                    {/* SECTION 2 — feature cards */}
+                    {/* "Everything a dev environment needs, zero the friction." */}
+                    <SectionHero
+                        title="Everything You Need"
+                        subtitle="A full dev environment that lives in your browser — terminal, packages, frameworks and all."
+                    />
                     <CodeflowFeatures />
 
-                    {/* HOW IT WORKS */}
+                    {/* SECTION 3 — workflow pipeline */}
+                    {/* "Browser → Type → Test → Output → Download" */}
+                    <SectionHero
+                        title="From Idea to Output in Seconds"
+                        subtitle="Open a template, write code, test it live, download your project. No CLI required."
+                    />
                     <ProcessFlow isLoader={false} />
 
-                    {/* WHY CODEFLOW */}
-                    <SectionHero title="Why Codeflow" />
+                    {/* SECTION 4 — IDE comparison */}
+                    <SectionHero
+                        title="Why Developers Choose Codeflow"
+                        subtitle="Traditional cloud IDEs keep you waiting. Codeflow runs entirely on your device — instant startup, zero latency, works offline."
+                    />
                     <IDEComparisonSection />
 
-                    {/* FINAL CTA */}
+                    {/* SECTION 5 — final CTA */}
                     <CTAButtons />
 
                     {/* FOOTER */}
                     <TechFooter />
-
                 </Box>
             </Box>
         </Box>

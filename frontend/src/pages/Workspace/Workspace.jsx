@@ -3,7 +3,9 @@ import { bootWebContainer } from "../runtime/webcontainer/webcontainer";
 import { mountTemplate } from "../runtime/webcontainer/mountFiles";
 import { startDevServer } from "../runtime/webcontainer/startDevServer";
 import WorkspaceLayout from "../../components/workspace/WorkspaceLayout";
-import { getUploadedTree, clearUploadedTree } from "../../store/uploadStore";
+import { startBackendServer } from "../runtime/webcontainer/Startbackendserver";
+
+const BACKEND_TEMPLATES = new Set(["node", "express", "fastify", "cli", "package"]);
 
 export default function Workspace({ templateId }) {
     const [previewUrl, setPreviewUrl] = useState(null);
@@ -11,10 +13,12 @@ export default function Workspace({ templateId }) {
     const [process, setProcess] = useState(null);
     const [webcontainer, setWebcontainer] = useState(null);
     const [projectPath, setProjectPath] = useState("");
+
     const initializedRef = useRef(false);
     const previewChannelRef = useRef(null);
 
     const isUpload = templateId === "uploaded";
+    const isBackend = BACKEND_TEMPLATES.has(templateId);
 
     useEffect(() => {
         setProjectPath(isUpload ? "/uploaded-project" : `/${templateId}`);
@@ -45,45 +49,51 @@ export default function Workspace({ templateId }) {
                 setWebcontainer(wc);
 
                 if (isUpload) {
-                    // ── UPLOADED PROJECT PATH ──────────────────────
-                    const tree = getUploadedTree();
+                    // ── Read tree from opener (new tab flow) ──────────────
+                    const tree = window.opener?.uploadedTree;
 
                     if (!tree) {
-                        setLogs(
-                            "❌ No uploaded project found. Please go back and upload again.\r\n"
-                        );
+                        setLogs("❌ No uploaded project found. Please go back and upload again.\r\n");
                         return;
                     }
 
-                    setLogs((prev) => prev + "📁 Mounting uploaded project...\r\n");
-                    await wc.mount(tree);
+                    // Clean up reference immediately
+                    delete window.opener.uploadedTree;
 
-                    // Clear from memory after mounting — no longer needed
-                    clearUploadedTree();
+                    setLogs((prev) => prev + "📁 Mounting uploaded project...\r\n");
+                    await wc.mount({ workspace: { directory: tree } });
+
                 } else {
-                    // ── TEMPLATE PATH (existing logic) ─────────────
+                    // ── Template flow ─────────────────────────────────────
                     setLogs((prev) => prev + "📁 Mounting project files...\r\n");
                     await mountTemplate(wc, templateId);
                 }
 
-                // ── DEV SERVER (same for both paths) ──────────────
                 wc.on("server-ready", (port, url) => {
-                    console.log("Server ready:", port, url);
                     setPreviewUrl(url);
                     localStorage.setItem("preview-url", url);
-                    previewChannelRef.current.postMessage({
-                        type: "preview-ready",
-                        url,
-                    });
+                    previewChannelRef.current.postMessage({ type: "preview-ready", url });
                 });
 
-                setLogs((prev) => prev + "⚡ Starting dev server...\r\n");
+                if (isBackend) {
+                    setLogs((prev) => prev + "⚡ Starting backend server...\r\n");
+                    const devProcess = await startBackendServer(
+                        wc,
+                        (data) => setLogs((prev) => prev + data),
+                        (p) => setProcess(p),
+                        null,
+                        false
+                    );
+                    setProcess(devProcess);
+                } else {
+                    setLogs((prev) => prev + "⚡ Starting dev server...\r\n");
+                    const devProcess = await startDevServer(
+                        wc,
+                        (data) => setLogs((prev) => prev + data)
+                    );
+                    setProcess(devProcess);
+                }
 
-                const devProcess = await startDevServer(wc, (data) => {
-                    setLogs((prev) => prev + data);
-                });
-
-                setProcess(devProcess);
             } catch (err) {
                 console.error(err);
                 setLogs((prev) => prev + "\r\n❌ Error: " + err.message);
@@ -102,6 +112,7 @@ export default function Workspace({ templateId }) {
             process={process}
             webcontainer={webcontainer}
             projectPath={projectPath}
+            isBackend={isBackend}
         />
     );
 }

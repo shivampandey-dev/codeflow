@@ -2,292 +2,271 @@ import { Box } from "@mantine/core";
 import { useEffect, useRef, useState, useMemo } from "react";
 import image from "../../Assets/logo.png";
 import HeroText from "../common/HeroText";
-import {
-    Rocket,
-    Zap,
-    Sparkles,
-    Code,
-    Cpu,
-    Boxes,
-    Flame,
-    Atom,
-    Brain,
-    Shield,
-    Cloud,
-    Database,
-    Workflow,
-    Gauge,
-    Orbit,
-} from "lucide-react";
 import CodePreview from "./CodePreview";
 
-export default function BackgroundLanding() {
-    const containerRef = useRef(null);
-    const [isMobile, setIsMobile] = useState(false);
-
+/* ── Mobile hook ── */
+function useIsMobile() {
+    const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
     useEffect(() => {
-        const check = () => setIsMobile(window.innerWidth < 768);
-        check();
-        window.addEventListener("resize", check);
-        return () => window.removeEventListener("resize", check);
+        let rafId;
+        const check = () => {
+            cancelAnimationFrame(rafId);
+            rafId = requestAnimationFrame(() => setIsMobile(window.innerWidth < 768));
+        };
+        window.addEventListener("resize", check, { passive: true });
+        return () => {
+            window.removeEventListener("resize", check);
+            cancelAnimationFrame(rafId);
+        };
     }, []);
+    return isMobile;
+}
 
-    const outerSize = isMobile ? "140vw" : "820px";
-    const middleSize = isMobile ? "105vw" : "600px";
-    const innerSize = isMobile ? "75vw" : "420px";
+/* ═══════════════════════════════════════
+   MAIN
+═══════════════════════════════════════ */
+export default function BackgroundLanding() {
+    const isMobile = useIsMobile();
+
+    const outerSize = isMobile ? "min(120vw, 460px)" : "820px";
+    const middleSize = isMobile ? "min(88vw,  340px)" : "600px";
+    const innerSize = isMobile ? "min(60vw,  230px)" : "420px";
+
+    const particles = useMemo(() => {
+        const count = isMobile ? 10 : 20;
+        return Array.from({ length: count }, () => ({
+            size: Math.random() * 4 + 2,
+            top: Math.random() * 100,
+            left: Math.random() * 100,
+            opacity: Math.random() * 0.4 + 0.3,
+            duration: 6 + Math.random() * 6,
+        }));
+    }, [isMobile]);
 
     return (
         <Box
-            ref={containerRef}
             style={{
-                position: "fixed",
-                inset: 0,
-                overflow: "hidden",
-                background: "#010205",
-                zIndex: -1,
+                position: "fixed", inset: 0, overflow: "hidden",
+                background: "#010205", zIndex: -1,
+                transform: "translateZ(0)", willChange: "transform",
+                touchAction: "none", pointerEvents: "none",
             }}
         >
-            <NeuralBackground />
+            <NeuralBackground isMobile={isMobile} />
 
-            {/* FLOATING PARTICLES */}
-            {[...Array(isMobile ? 10 : 20)].map((_, i) => {
-                const size = Math.random() * 4 + 2;
+            {/* Star particles */}
+            {particles.map((p, i) => (
+                <Box
+                    key={i}
+                    style={{
+                        position: "absolute",
+                        width: p.size, height: p.size,
+                        borderRadius: "50%",
+                        background: "rgba(255,255,255,0.9)",
+                        top: `${p.top}%`, left: `${p.left}%`,
+                        opacity: p.opacity,
+                        animation: `float ${p.duration}s ease-in-out infinite`,
+                        boxShadow: "0 0 6px rgba(255,255,255,0.8)",
+                        pointerEvents: "none", willChange: "transform",
+                    }}
+                />
+            ))}
 
-                return (
-                    <Box
-                        key={i}
-                        style={{
-                            position: "absolute",
-                            width: size,
-                            height: size,
-                            borderRadius: "50%",
-                            background: "rgba(255,255,255,0.9)",
-                            top: `${Math.random() * 100}%`,
-                            left: `${Math.random() * 100}%`,
-                            opacity: Math.random() * 0.4 + 0.3,
-                            animation: `float ${6 + Math.random() * 6}s ease-in-out infinite`,
-                            filter: "blur(0.6px)",
-                            boxShadow: `
-                                0 0 6px rgba(255,255,255,0.8),
-                                0 0 12px rgba(59,130,246,0.4)
-                            `,
-                            pointerEvents: "none",
-                        }}
-                    />
-                );
-            })}
+            {/* Hero text */}
+            <Box style={{ pointerEvents: "auto" }}>
+                <HeroText />
+            </Box>
 
-            {/* HERO TEXT */}
-            <HeroText />
-
-            {/* RINGS WRAPPER */}
+            {/* ── RINGS WRAPPER ── */}
             <Box
                 style={{
                     position: "absolute",
                     left: "50%",
-                    top: isMobile ? "42%" : "50%",
+                    top: isMobile ? "40%" : "50%",
                     transform: "translate(-50%, -50%)",
-                    width: 0,
-                    height: 0,
+                    width: 0, height: 0,
+                    pointerEvents: "none",
                 }}
             >
+                {/* Outer ring */}
                 <Ring
-                    size={outerSize}
-                    speed="90s"
-                    orbitCount={5}
-                    headings={[
-                        { text: "FAST", angle: 60, color: "#73d9b4" },
-                        { text: "SECURE", angle: 150, color: "#ea0dea" },
+                    size={outerSize} speed="90s" orbitCount={5}
+                    badges={[
+                        { text: "⚡ Fast", angle: 60, color: "#34d399" },
+                        { text: "🔒 Secure", angle: 200, color: "#c084fc" },
                     ]}
-                    glow="rgba(59,130,246,0.15)"
-                    color="#60a5fa"
+                    glow="rgba(59,130,246,0.15)" color="#60a5fa"
+                    isMobile={isMobile}
                 />
 
+                {/* Middle ring */}
                 <Ring
-                    size={middleSize}
-                    speed="60s"
-                    reverse
-                    orbitCount={4}
-                    headings={[
-                        { text: "ZERO SETUP", angle: 60, color: "#1093b8" },
-                        { text: "INSTANT", angle: 150, color: "#a78bfa" },
+                    size={middleSize} speed="60s" reverse orbitCount={4}
+                    badges={[
+                        { text: "✦ Zero Setup", angle: 70, color: "#38bdf8" },
+                        { text: "✦ Instant", angle: 220, color: "#a78bfa" },
                     ]}
-                    glow="rgba(52,211,153,0.15)"
-                    color="#34d399"
+                    glow="rgba(52,211,153,0.15)" color="#34d399"
+                    isMobile={isMobile}
                 />
 
+                {/* Inner ring — no badges */}
                 <Ring
-                    size={innerSize}
-                    speed="40s"
-                    orbitCount={3}
-                    headings={[]}
-                    glow="rgba(167,139,250,0.15)"
-                    color="#a78bfa"
+                    size={innerSize} speed="40s" orbitCount={3} badges={[]}
+                    glow="rgba(167,139,250,0.15)" color="#a78bfa"
+                    isMobile={isMobile}
                 />
 
-                <CenterCore isMobile={isMobile} />
-
-                {/* CENTER GLOW */}
+                {/* Center glow blob */}
                 <Box
                     style={{
-                        position: "absolute",
-                        left: "50%",
-                        top: "50%",
+                        position: "absolute", left: "50%", top: "50%",
                         transform: "translate(-50%, -50%)",
-                        width: isMobile ? 200 : 320,
-                        height: isMobile ? 200 : 320,
+                        width: isMobile ? "min(56vw, 210px)" : "320px",
+                        height: isMobile ? "min(56vw, 210px)" : "320px",
                         borderRadius: "50%",
-                        background:
-                            "radial-gradient(circle, rgba(99,102,241,0.35) 0%, rgba(99,102,241,0.08) 45%, transparent 70%)",
-                        filter: "blur(40px)",
-                        pointerEvents: "none",
+                        background: "radial-gradient(circle, rgba(99,102,241,0.35) 0%, rgba(99,102,241,0.08) 45%, transparent 70%)",
+                        filter: "blur(40px)", pointerEvents: "none",
                     }}
                 />
 
-                {/* LOGO */}
+                {/* Logo */}
                 <Box
                     style={{
                         position: "absolute",
-                        left: "50%",
-                        top: "50%",
-                        transform: "translate(-50%, -50%)",
+                        left: "50%", top: "50%",
+                        transform: "translate(-50%, -40%)",
                         pointerEvents: "none",
                         zIndex: 10,
                     }}
                 >
-                    <Box
+                    <img
+                        src={image}
+                        alt="Codeflow"
                         style={{
-                            transform: isMobile
-                                ? `translateY(calc(-75vw / 2))`
-                                : `translateY(-210px)`
+                            height: isMobile ? "clamp(90px, 18vw, 174px)" : "256px",
+                            width: "auto",
+                            filter: "drop-shadow(0 0 18px rgba(99,102,241,0.45))",
+                            animation: "logoPulse 4s ease-in-out infinite",
+                            userSelect: "none",
+                            willChange: "transform",
                         }}
-                    >
-                        <img
-                            src={image}
-                            alt="Codeflow"
-
-                            style={{
-                                height: isMobile ? 174 : 256,
-                                width: "auto",
-                                filter: "drop-shadow(0 0 18px rgba(99,102,241,0.45))",
-                                animation: "logoPulse 4s ease-in-out infinite",
-                                userSelect: "none",
-                            }}
-                        />
-                    </Box>
+                    />
                 </Box>
             </Box>
 
-            <CodePreview />
+            {/* Code preview card — desktop only */}
+            <Box style={{ pointerEvents: "auto" }}>
+                <CodePreview />
+            </Box>
         </Box>
     );
 }
 
-/* ================= NEURAL BACKGROUND ================= */
+/* ═══════════════════════════════════════
+   NEURAL BACKGROUND
+═══════════════════════════════════════ */
+function NeuralBackground({ isMobile }) {
+    const groupRef = useRef(null);
 
-function NeuralBackground() {
-    const ref = useRef(null);
+    const lines = useMemo(
+        () =>
+            Array.from({ length: isMobile ? 35 : 70 }, () => ({
+                x1: Math.random() * 100,
+                y1: Math.random() * 100,
+                x2: Math.random() * 100,
+                y2: Math.random() * 100,
+                dur: `${6 + Math.random() * 6}s`,
+            })),
+        [isMobile]
+    );
 
     useEffect(() => {
+        if (isMobile) return;
+        let rafId;
         const move = (e) => {
-            const x = (e.clientX / window.innerWidth - 0.5) * 30;
-            const y = (e.clientY / window.innerHeight - 0.5) * 30;
-
-            if (ref.current) {
-                ref.current.style.transform = `translate(${x}px, ${y}px)`;
-            }
+            cancelAnimationFrame(rafId);
+            rafId = requestAnimationFrame(() => {
+                if (!groupRef.current) return;
+                const x = (e.clientX / window.innerWidth - 0.5) * 30;
+                const y = (e.clientY / window.innerHeight - 0.5) * 30;
+                groupRef.current.style.transform = `translate(${x}px, ${y}px)`;
+            });
         };
-
-        window.addEventListener("mousemove", move);
-        return () => window.removeEventListener("mousemove", move);
-    }, []);
-
-    const lines = Array.from({ length: 70 });
+        window.addEventListener("mousemove", move, { passive: true });
+        return () => {
+            window.removeEventListener("mousemove", move);
+            cancelAnimationFrame(rafId);
+        };
+    }, [isMobile]);
 
     return (
         <svg
-            width="100%"
-            height="100%"
-            style={{
-                position: "absolute",
-                inset: 0,
-                opacity: 0.35,
-                pointerEvents: "none",
-            }}
+            width="100%" height="100%"
+            style={{ position: "absolute", inset: 0, opacity: 0.35, pointerEvents: "none" }}
         >
-            <g ref={ref} style={{ animation: "neuralFloat 30s ease-in-out infinite" }}>
-                {lines.map((_, i) => {
-                    const x1 = Math.random() * 100;
-                    const y1 = Math.random() * 100;
-                    const x2 = Math.random() * 100;
-                    const y2 = Math.random() * 100;
-
-                    return (
-                        <line
-                            key={i}
-                            x1={`${x1}%`}
-                            y1={`${y1}%`}
-                            x2={`${x2}%`}
-                            y2={`${y2}%`}
-                            stroke="rgba(59,130,246,0.25)"
-                            strokeWidth="1"
-                        >
-                            <animate
-                                attributeName="opacity"
-                                values="0.1;0.7;0.1"
-                                dur={`${6 + Math.random() * 6}s`}
-                                repeatCount="indefinite"
-                            />
-                        </line>
-                    );
-                })}
+            <g ref={groupRef} style={{ animation: "neuralFloat 30s ease-in-out infinite" }}>
+                {lines.map((l, i) => (
+                    <line
+                        key={i}
+                        x1={`${l.x1}%`} y1={`${l.y1}%`}
+                        x2={`${l.x2}%`} y2={`${l.y2}%`}
+                        stroke="rgba(59,130,246,0.25)" strokeWidth="1"
+                    >
+                        <animate
+                            attributeName="opacity"
+                            values="0.1;0.7;0.1"
+                            dur={l.dur}
+                            repeatCount="indefinite"
+                        />
+                    </line>
+                ))}
             </g>
         </svg>
     );
 }
 
-/* ================= RING ================= */
+/* ═══════════════════════════════════════
+   RING
+   Badge pills counter-rotate so text is always upright & readable.
+═══════════════════════════════════════ */
+function Ring({ size, speed, reverse, glow, badges = [], color, orbitCount = 4, isMobile }) {
+    const counterAnim = reverse
+        ? `rotateOrbit ${speed} linear infinite`
+        : `rotateOrbit ${speed} linear infinite reverse`;
 
-function Ring({ size, speed, reverse, glow, headings = [], color, orbitCount = 4 }) {
     return (
         <Box
             style={{
-                position: "absolute",
-                left: "50%",
-                top: "50%",
+                position: "absolute", left: "50%", top: "50%",
                 transform: "translate(-50%, -50%)",
             }}
         >
             <Box
                 style={{
-                    width: size,
-                    height: size,
+                    width: size, height: size,
                     borderRadius: "50%",
-                    border: "1px solid rgba(255,255,255,0.08)",
+                    border: "1px solid rgba(255,255,255,0.07)",
                     boxShadow: `0 0 30px ${glow}`,
                     position: "relative",
                     animation: `rotateOrbit ${speed} linear infinite ${reverse ? "reverse" : ""}`,
+                    willChange: "transform",
                 }}
             >
-                {/* ORBIT NODES */}
+                {/* Orbit nodes */}
                 {Array.from({ length: orbitCount }).map((_, i) => (
                     <Box
                         key={i}
                         style={{
-                            position: "absolute",
-                            inset: 0,
+                            position: "absolute", inset: 0,
                             transform: `rotate(${(360 / orbitCount) * i}deg)`,
                         }}
                     >
                         <Box
                             style={{
-                                position: "absolute",
-                                top: -4,
-                                left: "50%",
+                                position: "absolute", top: -4, left: "50%",
                                 transform: "translateX(-50%)",
-                                width: 6,
-                                height: 6,
-                                borderRadius: "50%",
+                                width: 6, height: 6, borderRadius: "50%",
                                 background: color,
                                 boxShadow: `0 0 8px ${color}, 0 0 16px ${color}80`,
                             }}
@@ -295,166 +274,50 @@ function Ring({ size, speed, reverse, glow, headings = [], color, orbitCount = 4
                     </Box>
                 ))}
 
-                {/* HEADINGS */}
-                {headings.map((h, i) => {
-                    const c = h.color || color;
-
+                {/* Badge pills — counter-rotated & scaled for mobile */}
+                {badges.map((b, i) => {
+                    const c = b.color || color;
                     return (
                         <Box
                             key={i}
                             style={{
-                                position: "absolute",
-                                inset: 0,
-                                transform: `rotate(${h.angle}deg)`,
+                                position: "absolute", inset: 0,
+                                transform: `rotate(${b.angle}deg)`,
                             }}
                         >
                             <Box
                                 style={{
                                     position: "absolute",
-                                    top: -18,
+                                    top: isMobile ? -11 : -16,
                                     left: "50%",
                                     transform: "translateX(-50%)",
+                                    animation: counterAnim,
+                                    willChange: "transform",
                                     whiteSpace: "nowrap",
                                 }}
                             >
                                 <Box
                                     style={{
-                                        padding: "2px 14px",
-                                        borderRadius: 10,
-                                        fontSize: 11,
-                                        letterSpacing: 0.6,
-                                        fontWeight: 600,
+                                        padding: isMobile ? "2px 7px" : "3px 12px",
+                                        borderRadius: 20,
+                                        fontSize: isMobile ? 8 : 11,
+                                        letterSpacing: 0.4,
+                                        fontWeight: 700,
                                         color: "#e2e8f0",
-                                        background: `linear-gradient(135deg, ${c}40, ${c}15)`,
-                                        border: `1px solid ${c}55`,
-                                        backdropFilter: "blur(10px)",
-                                        boxShadow: `0 0 12px ${c}40, inset 0 0 12px ${c}20`,
-                                        textShadow: `0 0 6px ${c}`,
+                                        background: `linear-gradient(135deg, ${c}40, ${c}18)`,
+                                        border: `1px solid ${c}50`,
+                                        backdropFilter: "blur(8px)",
+                                        boxShadow: `0 0 10px ${c}38, inset 0 0 8px ${c}18`,
+                                        textShadow: `0 0 8px ${c}`,
                                         animation: "badgePulse 4s ease-in-out infinite",
                                     }}
                                 >
-                                    {h.text}
+                                    {b.text}
                                 </Box>
                             </Box>
                         </Box>
                     );
                 })}
-            </Box>
-        </Box>
-    );
-}
-
-/* ================= CENTER CORE ================= */
-
-function CenterCore({ isMobile }) {
-    const iconSet = [
-        Rocket, Zap, Sparkles, Code, Cpu, Boxes,
-        Flame, Atom, Brain, Shield, Cloud,
-        Database, Workflow, Gauge, Orbit,
-    ];
-
-    const total = 14;
-
-    const positions = useMemo(() => {
-        const spread = isMobile ? 70 : 120;
-
-        return Array.from({ length: total }).map(() => ({
-            x: (Math.random() - 0.5) * spread,
-            y: (Math.random() - 0.5) * spread,
-        }));
-    }, [isMobile]);
-
-    return (
-        <Box
-            style={{
-                position: "absolute",
-                left: "50%",
-                top: "50%",
-                transform: "translate(-50%, -50%)",
-                pointerEvents: "none",
-            }}
-        >
-            {positions.map((p, i) => {
-                const Icon = iconSet[i % iconSet.length];
-                const hue = (i * 360) / total;
-                const color = `hsl(${hue}, 85%, 65%)`;
-
-                return (
-                    <Bubble key={i} x={p.x} y={p.y} delay={i * 0.3} color={color}>
-                        <Icon size={16} />
-                    </Bubble>
-                );
-            })}
-        </Box>
-    );
-}
-
-/* ================= BUBBLE ================= */
-
-function Bubble({ children, x, y, delay = 0, color }) {
-    const ref = useRef(null);
-    const [drag, setDrag] = useState(false);
-    const [pos, setPos] = useState({ x: 0, y: 0 });
-    const start = useRef({ x: 0, y: 0 });
-
-    const onPointerDown = (e) => {
-        setDrag(true);
-        start.current = {
-            x: e.clientX - pos.x,
-            y: e.clientY - pos.y,
-        };
-        ref.current.setPointerCapture(e.pointerId);
-    };
-
-    const onPointerMove = (e) => {
-        if (!drag) return;
-        const nx = e.clientX - start.current.x;
-        const ny = e.clientY - start.current.y;
-        setPos({ x: nx, y: ny });
-    };
-
-    const onPointerUp = (e) => {
-        setDrag(false);
-        ref.current.releasePointerCapture(e.pointerId);
-        setPos({ x: 0, y: 0 });
-    };
-
-    return (
-        <Box
-            ref={ref}
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            style={{
-                position: "absolute",
-                left: "50%",
-                top: "50%",
-                "--bx": `${x}px`,
-                "--by": `${y}px`,
-                animation: drag ? "none" : `bubbleMove 7s cubic-bezier(.4,0,.2,1) ${delay}s infinite`,
-                transform: drag
-                    ? `translate(calc(-50% + ${x + pos.x}px), calc(-50% + ${y + pos.y}px))`
-                    : undefined,
-                pointerEvents: "auto",
-                cursor: drag ? "grabbing" : "grab",
-            }}
-        >
-            <Box
-                style={{
-                    width: 26,
-                    height: 26,
-                    borderRadius: "50%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(255,255,255,0.10)",
-                    backdropFilter: "blur(10px)",
-                    color: color,
-                    boxShadow: `0 0 6px ${color}40`,
-                }}
-            >
-                {children}
             </Box>
         </Box>
     );
