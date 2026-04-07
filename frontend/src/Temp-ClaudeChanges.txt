@@ -1,242 +1,190 @@
-import Editor, { useMonaco } from "@monaco-editor/react"
-import { useEditorStore } from "../../../store/editorStore"
-import { getLanguage } from "./languageMap"
-import Tabs from "./Tabs"
-import SettingsPanel from "./SettingsPanel"
-import image from "../../../Assets/logo.png"
-import { Bug } from "lucide-react";
-import { useSettingsStore } from "../../../store/settingsStore"
-import { loadMonacoTheme } from "../../../utils/loadTheme"
-import { deriveUIColors } from "../../../utils/themeColors"
-import { useEffect, useRef, useState } from "react"
-import { ActionIcon, Tooltip } from "@mantine/core"
-import { Settings, Expand, Minimize } from "lucide-react"
-import ApiTester from "./ApiTester"
+let shellInstance = null
+let installing = false
+let signalWriter = null
+let onStopCallback = null
+let depsInstalled = false
 
-// ✅ previewUrl comes as a prop — single source of truth from Workspace.jsx
-//    No more local server-ready listener racing against the one in Workspace.jsx
-export default function CodeEditor({ previewUrl, fullscreen, setFullscreen }) {
-
-    const {
-        activeFile,
-        contents,
-        updateContent,
-        saveFile,
-        webcontainer,
-    } = useEditorStore()
-
-    const {
-        theme, themeData, setThemeData,
-        fontSize, editorFontFamily, wordWrap,
-        minimap, cursorStyle, autoSave, autoSaveDelay,
-    } = useSettingsStore()
-
-    const monaco = useMonaco()
-    const fileName = activeFile?.split("/").pop()
-    const language = getLanguage(fileName || "")
-
-    const saveTimeout   = useRef(null)
-    const watcherStarted = useRef(false)
-
-    const [settingsOpen, setSettingsOpen] = useState(false)
-    const [apiOpen,      setApiOpen]      = useState(false)
-
-    /* ── Theme ─────────────────────────────────────────────────────────── */
-    const editorBg = themeData?.colors?.["editor.background"] || "#1e1e1e"
-    const ui = deriveUIColors(editorBg)
-
-    useEffect(() => {
-        if (!monaco) return
-        async function applyTheme() {
-            const data = await loadMonacoTheme(monaco, theme)
-            setThemeData(data)
-        }
-        applyTheme()
-    }, [theme, monaco])
-
-    /* ── Type definitions ──────────────────────────────────────────────── */
-    async function loadTypes(monacoInstance) {
-        if (!webcontainer) return
-        const loaded = new Set()
-
-        async function walk(dir) {
-            let entries
-            try { entries = await webcontainer.fs.readdir(dir) }
-            catch { return }
-
-            for (const entry of entries) {
-                const path = `${dir}/${entry}`
-                try {
-                    const stat = await webcontainer.fs.stat(path)
-                    if (stat.isDirectory()) {
-                        if (["bin", "dist", "build"].includes(entry)) continue
-                        await walk(path)
-                    } else if (entry.endsWith(".d.ts")) {
-                        if (loaded.has(path)) continue
-                        const content = await webcontainer.fs.readFile(path, "utf-8")
-                        monacoInstance.languages.typescript.javascriptDefaults.addExtraLib(
-                            content, `file://${path}`
-                        )
-                        loaded.add(path)
-                    }
-                } catch { }
-            }
-        }
-        await walk("/node_modules")
-    }
-
-    async function watchNodeModules(monacoInstance) {
-        if (!webcontainer || watcherStarted.current) return
-        watcherStarted.current = true
+export async function startDevServer(
+    webcontainer,
+    onOutput,
+    onProcessChange,
+    onServerStop,
+    skipInstall = false
+) {
+    // ── RESTART PATH ──────────────────────────────────────────────────────────
+    if (shellInstance && signalWriter && skipInstall) {
+        onStopCallback = onServerStop
+        const writeStatus = (tag) => onOutput?.(`\r\n__STATUS__:${tag}\r\n`)
+        const write = (data) => onOutput?.(data)
         try {
-            const watcher = await webcontainer.fs.watch("/node_modules", { recursive: true })
-            watcher.on("change", async () => { await loadTypes(monacoInstance) })
-        } catch { }
-    }
-
-    /* ── Monaco init ───────────────────────────────────────────────────── */
-    function handleEditorMount(editor, monacoInstance) {
-        monacoInstance.languages.typescript.javascriptDefaults.setCompilerOptions({
-            target:                     monacoInstance.languages.typescript.ScriptTarget.ES2020,
-            module:                     monacoInstance.languages.typescript.ModuleKind.ESNext,
-            moduleResolution:           monacoInstance.languages.typescript.ModuleResolutionKind.NodeJs,
-            allowNonTsExtensions:       true,
-            allowJs:                    true,
-            jsx:                        monacoInstance.languages.typescript.JsxEmit.ReactJSX,
-            esModuleInterop:            true,
-            allowSyntheticDefaultImports: true,
-            resolveJsonModule:          true,
-            strict:                     false,
-            noEmit:                     true,
-        })
-
-        loadTypes(monacoInstance)
-        watchNodeModules(monacoInstance)
-
-        editor.addCommand(
-            monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.KeyS,
-            async () => await saveFile()
-        )
-        editor.addCommand(
-            monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.Comma,
-            () => setSettingsOpen(true)
-        )
-    }
-
-    /* ── Models ────────────────────────────────────────────────────────── */
-    useEffect(() => {
-        if (!monaco) return
-        Object.entries(contents).forEach(([path, code]) => {
-            const uri  = monaco.Uri.parse(`file://${path}`)
-            let model  = monaco.editor.getModel(uri)
-            const safeCode = code ?? ""
-            if (!model) {
-                monaco.editor.createModel(safeCode, getLanguage(path), uri)
-            } else if (model.getValue() !== safeCode) {
-                model.setValue(safeCode)
+            if (depsInstalled) {
+                writeStatus("starting_server")
+                write("\r\n🚀 Starting dev server...\r\n")
+                await signalWriter.write("npm run dev\n")
+            } else {
+                writeStatus("installing_deps")
+                write("\r\n⚠️  Previous install was incomplete — reinstalling...\r\n")
+                await signalWriter.write("npm install && npm run dev\n")
             }
+        } catch (err) {
+            console.error("[restart error]", err)
+        }
+        onProcessChange?.(shellInstance)
+        return shellInstance
+    }
+
+    if (shellInstance) return shellInstance
+    if (installing) return
+    installing = true
+
+    depsInstalled = false
+    onStopCallback = onServerStop
+
+    const writeStatus = (tag) => onOutput?.(`\r\n__STATUS__:${tag}\r\n`)
+    const write = (data) => onOutput?.(data)
+    const decoder = new TextDecoder()
+    const decode = (v) => typeof v === "string" ? v : decoder.decode(v)
+
+    try {
+        /* ── FS PREP ─────────────────────────────────────────────────────── */
+        writeStatus("preparing_workspace")
+        write("\r\n🚀 Preparing workspace...\r\n")
+
+        await webcontainer.fs.mkdir("/workspace").catch(() => { })
+        const rootFiles = await webcontainer.fs.readdir("/")
+        for (const file of rootFiles) {
+            if (["workspace", ".git", ".gitignore"].includes(file)) continue
+            try {
+                await webcontainer.fs.rename(`/${file}`, `/workspace/${file}`)
+            } catch { }
+        }
+
+        /* ── SPAWN JSH ───────────────────────────────────────────────────── */
+        const shell = await webcontainer.spawn("jsh", {
+            terminal: { cols: 80, rows: 24 }
         })
-    }, [contents, monaco])
+        shellInstance = shell
 
-    /* ── Auto save ─────────────────────────────────────────────────────── */
-    useEffect(() => {
-        if (!activeFile || !autoSave) return
-        if (saveTimeout.current) clearTimeout(saveTimeout.current)
-        saveTimeout.current = setTimeout(() => { saveFile() }, autoSaveDelay)
-        return () => { if (saveTimeout.current) clearTimeout(saveTimeout.current) }
-    }, [activeFile, contents, autoSave, autoSaveDelay])
+        /* ── TEE OUTPUT ──────────────────────────────────────────────────── */
+        const [outForTerminal, outForDetection] = shell.output.tee()
 
-    /* ── Render ────────────────────────────────────────────────────────── */
-    return (
-        <div style={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}>
+        outForTerminal.pipeTo(new WritableStream({
+            write(chunk) { write(decode(chunk)) }
+        }))
 
-            {/* HEADER */}
-            <div style={{
-                display: "flex", alignItems: "center",
-                borderBottom: `1px solid ${ui.border}`,
-                background: ui.sidebarBg, minWidth: 0, overflow: "hidden",
-            }}>
-                {/* Tabs */}
-                <div style={{ background: editorBg, flex: 1, minWidth: 0, overflow: "hidden" }}>
-                    <Tabs />
-                </div>
+        // Detection loop — runs in background
+        ;(async () => {
+            const reader = outForDetection.getReader()
+            let installFlagged = false
+            let serverFlagged = false
+            let serverWasRunning = false
 
-                {/* Action buttons */}
-                <div style={{
-                    display: "flex", alignItems: "center", flexShrink: 0,
-                    gap: 2, paddingRight: 4, background: ui.sidebarBg,
-                }}>
-                    <Tooltip label={fullscreen ? "Exit Fullscreen" : "Enter Fullscreen"} withArrow
-                        styles={{ tooltip: { fontSize: "11px", padding: "4px 8px" } }}>
-                        <ActionIcon variant="subtle" onClick={() => setFullscreen(!fullscreen)}>
-                            {fullscreen ? <Minimize size={16} /> : <Expand size={16} />}
-                        </ActionIcon>
-                    </Tooltip>
+            while (true) {
+                const { value, done } = await reader.read()
+                if (done) break
+                const text = decode(value)
 
-                    <Tooltip label="Editor Settings" withArrow
-                        styles={{ tooltip: { fontSize: "11px", padding: "4px 8px" } }}>
-                        <ActionIcon variant="subtle" onClick={() => setSettingsOpen(true)}>
-                            <Settings size={16} />
-                        </ActionIcon>
-                    </Tooltip>
+                // ── INSTALL COMPLETE ──────────────────────────────────────
+                // Covers ALL npm install outcomes:
+                //   "added 142 packages"     → normal install
+                //   "up to date"             → nothing new to install
+                //   "found 0 vulnerabilities"→ no-dep or already installed
+                //   "audited X packages"     → appears in most npm outputs
+                if (!installFlagged && (
+                    /added \d+ package/i.test(text)         ||
+                    /up to date/i.test(text)                ||
+                    /found \d+ vulnerabilit/i.test(text)    ||
+                    /audited \d+ package/i.test(text)
+                )) {
+                    installFlagged = true
+                    depsInstalled = true
+                    writeStatus("starting_server")
+                    write("\r\n🚀 Starting dev server...\r\n")
+                }
 
-                    {/* ✅ Only show API Tester button for backend projects
-                          (previewUrl will be null for frontend-only projects
-                           until server-ready fires, so button is always safe) */}
-                    <Tooltip label="API Tester" withArrow
-                        styles={{ tooltip: { fontSize: "11px", padding: "4px 8px" } }}>
-                        <ActionIcon variant="subtle" mr="xs" onClick={() => setApiOpen(true)}>
-                            <Bug size={16} />
-                        </ActionIcon>
-                    </Tooltip>
-                </div>
-            </div>
+                // ── SERVER READY ──────────────────────────────────────────
+                // Covers Vite, Next.js, CRA (webpack), Parcel, Nuxt, Remix,
+                // plain node http, nodemon, etc.
+                if (!serverFlagged && (
+                    /Local:\s+http/i.test(text)                          || // Vite
+                    /ready in/i.test(text)                               || // Vite
+                    /ready started server on/i.test(text)                || // Next.js
+                    /compiled\s+(client and server\s+)?successfully/i.test(text) || // CRA / Next
+                    /webpack compiled/i.test(text)                       || // CRA
+                    /server running at/i.test(text)                      || // Parcel / misc
+                    /listening on.*\d{4}/i.test(text)                    || // plain node
+                    /localhost:\d{4}/i.test(text)                        || // misc
+                    /nuxt.*ready/i.test(text)                            || // Nuxt
+                    /remix.*built/i.test(text)                              // Remix
+                )) {
+                    serverFlagged = true
+                    serverWasRunning = true
+                    writeStatus("server_ready")
+                    write("\r\n🟢 Dev Server Ready!\r\n")
+                }
 
-            {/* EDITOR */}
-            <div style={{ flex: 1, minHeight: 0 }}>
-                {!activeFile ? (
-                    <div style={{
-                        height: "100%", display: "flex", alignItems: "center",
-                        justifyContent: "center", background: editorBg, position: "relative",
-                    }}>
-                        <img src={image} style={{
-                            position: "absolute", width: 520,
-                            opacity: 0.08, filter: "blur(1.5px) brightness(1.1)",
-                        }} />
-                    </div>
-                ) : (
-                    <Editor
-                        height="100%"
-                        path={`file://${activeFile}`}
-                        language={language}
-                        theme={theme}
-                        options={{
-                            fontSize, fontFamily: editorFontFamily,
-                            wordWrap: wordWrap ? "on" : "off",
-                            minimap: { enabled: minimap },
-                            cursorStyle, automaticLayout: true,
-                            quickSuggestions: true,
-                            suggestOnTriggerCharacters: true,
-                            wordBasedSuggestions: true,
-                        }}
-                        onChange={(value) => updateContent(value ?? "")}
-                        onMount={handleEditorMount}
-                    />
-                )}
-            </div>
+                // ── SERVER STOPPED ────────────────────────────────────────
+                if (serverWasRunning && /[❯>$]\s*$/.test(
+                    text.replace(/\x1b\[[0-9;]*[mGKHF]/g, "").trimEnd()
+                )) {
+                    serverWasRunning = false
+                    serverFlagged = false
+                    writeStatus("server_stopped")
+                    onStopCallback?.()
+                }
+            }
 
-            <SettingsPanel
-                opened={settingsOpen}
-                close={() => setSettingsOpen(false)}
-            />
+            shellInstance = null
+            signalWriter = null
+            depsInstalled = false
+            onProcessChange?.(null)
+            onStopCallback?.()
+        })()
 
-            {/* ✅ defaultUrl comes directly from previewUrl prop —
-                 same URL the Preview iframe uses, no race condition */}
-            <ApiTester
-                defaultUrl={previewUrl || ""}
-                opened={apiOpen}
-                close={() => setApiOpen(false)}
-            />
-        </div>
-    )
+        /* ── SEND COMMAND ────────────────────────────────────────────────── */
+        await new Promise(resolve => setTimeout(resolve, 500))
+        signalWriter = shell.input.getWriter()
+
+        if (skipInstall) {
+            writeStatus("starting_server")
+            write("\r\n🚀 Starting dev server...\r\n")
+            await signalWriter.write("cd workspace && npm run dev\n")
+        } else {
+            writeStatus("installing_deps")
+            write("\r\n📦 Installing dependencies...\r\n")
+            await signalWriter.write("cd workspace && npm install && npm run dev\n")
+        }
+
+        onProcessChange?.(shell)
+
+    } catch (err) {
+        write(`\r\n❌ Error starting dev server:\r\n${err}\r\n`)
+        shellInstance = null
+        signalWriter = null
+    }
+
+    installing = false
+    return shellInstance
+}
+
+export async function killDevServer() {
+    if (!signalWriter) return false
+    try { await signalWriter.write("\x03") } catch { }
+    return true
+}
+
+export function resetDevServer() {
+    try { signalWriter?.releaseLock() } catch { }
+    shellInstance = null
+    signalWriter = null
+    installing = false
+    depsInstalled = false
+}
+
+export function getCurrentProcess() {
+    return shellInstance
+}
+
+export function isServerRunning() {
+    return shellInstance !== null
 }
