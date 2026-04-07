@@ -1,190 +1,539 @@
-let shellInstance = null
-let installing = false
-let signalWriter = null
-let onStopCallback = null
-let depsInstalled = false
+/* ================================
+   SHARED HTML TEMPLATE
+================================ */
 
-export async function startDevServer(
-    webcontainer,
-    onOutput,
-    onProcessChange,
-    onServerStop,
-    skipInstall = false
-) {
-    // ── RESTART PATH ──────────────────────────────────────────────────────────
-    if (shellInstance && signalWriter && skipInstall) {
-        onStopCallback = onServerStop
-        const writeStatus = (tag) => onOutput?.(`\r\n__STATUS__:${tag}\r\n`)
-        const write = (data) => onOutput?.(data)
-        try {
-            if (depsInstalled) {
-                writeStatus("starting_server")
-                write("\r\n🚀 Starting dev server...\r\n")
-                await signalWriter.write("npm run dev\n")
-            } else {
-                writeStatus("installing_deps")
-                write("\r\n⚠️  Previous install was incomplete — reinstalling...\r\n")
-                await signalWriter.write("npm install && npm run dev\n")
-            }
-        } catch (err) {
-            console.error("[restart error]", err)
+const baseHtml = (entry) => `
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Codeflow</title>
+    <style>
+      body {
+        margin: 0;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #1e1e1e;
+        color: #e2e8f0;
+        font-family: Inter, system-ui, sans-serif;
+      }
+      #root, #app {
+        text-align: center;
+        max-width: 600px;
+      }
+      h1 {
+        font-size: 42px;
+        margin-bottom: 12px;
+        background: linear-gradient(90deg,#38bdf8,#22c55e,#a855f7);
+        -webkit-background-clip: text;
+        color: transparent;
+      }
+      p { color: #94a3b8; margin-bottom: 24px; }
+      button {
+        background: linear-gradient(90deg,#6366f1,#8b5cf6);
+        border: none; padding: 12px 22px; border-radius: 10px;
+        color: white; font-weight: 600; cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <div id="app"></div>
+    <script type="module" src="${entry}"></script>
+  </body>
+</html>
+`;
+
+/* ================================
+   SHARED VITE CONFIG
+   ✅ server.host = true → binds to 0.0.0.0
+      WebContainer requires this for server-ready to fire
+================================ */
+const viteConfig = (pluginImport, pluginCall) => `
+import { defineConfig } from 'vite'
+${pluginImport}
+
+export default defineConfig({
+  plugins: [${pluginCall}],
+  server: {
+    host: true,   // ✅ bind to 0.0.0.0 — required for WebContainer
+    port: 3000,
+  },
+})
+`;
+
+/* ================================
+   REACT TEMPLATE
+================================ */
+const reactTemplate = {
+    "package.json": {
+        file: {
+            contents: JSON.stringify({
+                name: "react-app", private: true, version: "0.0.0", type: "module",
+                scripts: { dev: "vite --host" },
+                dependencies: { react: "^18.2.0", "react-dom": "^18.2.0" },
+                devDependencies: { vite: "^5.0.0", "@vitejs/plugin-react": "^4.0.0" }
+            }, null, 2)
         }
-        onProcessChange?.(shellInstance)
-        return shellInstance
-    }
-
-    if (shellInstance) return shellInstance
-    if (installing) return
-    installing = true
-
-    depsInstalled = false
-    onStopCallback = onServerStop
-
-    const writeStatus = (tag) => onOutput?.(`\r\n__STATUS__:${tag}\r\n`)
-    const write = (data) => onOutput?.(data)
-    const decoder = new TextDecoder()
-    const decode = (v) => typeof v === "string" ? v : decoder.decode(v)
-
-    try {
-        /* ── FS PREP ─────────────────────────────────────────────────────── */
-        writeStatus("preparing_workspace")
-        write("\r\n🚀 Preparing workspace...\r\n")
-
-        await webcontainer.fs.mkdir("/workspace").catch(() => { })
-        const rootFiles = await webcontainer.fs.readdir("/")
-        for (const file of rootFiles) {
-            if (["workspace", ".git", ".gitignore"].includes(file)) continue
-            try {
-                await webcontainer.fs.rename(`/${file}`, `/workspace/${file}`)
-            } catch { }
+    },
+    "vite.config.js": {
+        file: {
+            contents: viteConfig(
+                `import react from '@vitejs/plugin-react'`,
+                `react()`
+            )
         }
-
-        /* ── SPAWN JSH ───────────────────────────────────────────────────── */
-        const shell = await webcontainer.spawn("jsh", {
-            terminal: { cols: 80, rows: 24 }
-        })
-        shellInstance = shell
-
-        /* ── TEE OUTPUT ──────────────────────────────────────────────────── */
-        const [outForTerminal, outForDetection] = shell.output.tee()
-
-        outForTerminal.pipeTo(new WritableStream({
-            write(chunk) { write(decode(chunk)) }
-        }))
-
-        // Detection loop — runs in background
-        ;(async () => {
-            const reader = outForDetection.getReader()
-            let installFlagged = false
-            let serverFlagged = false
-            let serverWasRunning = false
-
-            while (true) {
-                const { value, done } = await reader.read()
-                if (done) break
-                const text = decode(value)
-
-                // ── INSTALL COMPLETE ──────────────────────────────────────
-                // Covers ALL npm install outcomes:
-                //   "added 142 packages"     → normal install
-                //   "up to date"             → nothing new to install
-                //   "found 0 vulnerabilities"→ no-dep or already installed
-                //   "audited X packages"     → appears in most npm outputs
-                if (!installFlagged && (
-                    /added \d+ package/i.test(text)         ||
-                    /up to date/i.test(text)                ||
-                    /found \d+ vulnerabilit/i.test(text)    ||
-                    /audited \d+ package/i.test(text)
-                )) {
-                    installFlagged = true
-                    depsInstalled = true
-                    writeStatus("starting_server")
-                    write("\r\n🚀 Starting dev server...\r\n")
+    },
+    "index.html": { file: { contents: baseHtml("/src/main.jsx") } },
+    src: {
+        directory: {
+            "main.jsx": {
+                file: {
+                    contents: `
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App.jsx";
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+`
                 }
-
-                // ── SERVER READY ──────────────────────────────────────────
-                // Covers Vite, Next.js, CRA (webpack), Parcel, Nuxt, Remix,
-                // plain node http, nodemon, etc.
-                if (!serverFlagged && (
-                    /Local:\s+http/i.test(text)                          || // Vite
-                    /ready in/i.test(text)                               || // Vite
-                    /ready started server on/i.test(text)                || // Next.js
-                    /compiled\s+(client and server\s+)?successfully/i.test(text) || // CRA / Next
-                    /webpack compiled/i.test(text)                       || // CRA
-                    /server running at/i.test(text)                      || // Parcel / misc
-                    /listening on.*\d{4}/i.test(text)                    || // plain node
-                    /localhost:\d{4}/i.test(text)                        || // misc
-                    /nuxt.*ready/i.test(text)                            || // Nuxt
-                    /remix.*built/i.test(text)                              // Remix
-                )) {
-                    serverFlagged = true
-                    serverWasRunning = true
-                    writeStatus("server_ready")
-                    write("\r\n🟢 Dev Server Ready!\r\n")
-                }
-
-                // ── SERVER STOPPED ────────────────────────────────────────
-                if (serverWasRunning && /[❯>$]\s*$/.test(
-                    text.replace(/\x1b\[[0-9;]*[mGKHF]/g, "").trimEnd()
-                )) {
-                    serverWasRunning = false
-                    serverFlagged = false
-                    writeStatus("server_stopped")
-                    onStopCallback?.()
+            },
+            "App.jsx": {
+                file: {
+                    contents: `
+export default function App() {
+  return (
+    <div>
+      <h1>React Template</h1>
+      <p>Running inside WebContainer</p>
+      <button>Start Building</button>
+    </div>
+  );
+}
+`
                 }
             }
-
-            shellInstance = null
-            signalWriter = null
-            depsInstalled = false
-            onProcessChange?.(null)
-            onStopCallback?.()
-        })()
-
-        /* ── SEND COMMAND ────────────────────────────────────────────────── */
-        await new Promise(resolve => setTimeout(resolve, 500))
-        signalWriter = shell.input.getWriter()
-
-        if (skipInstall) {
-            writeStatus("starting_server")
-            write("\r\n🚀 Starting dev server...\r\n")
-            await signalWriter.write("cd workspace && npm run dev\n")
-        } else {
-            writeStatus("installing_deps")
-            write("\r\n📦 Installing dependencies...\r\n")
-            await signalWriter.write("cd workspace && npm install && npm run dev\n")
         }
-
-        onProcessChange?.(shell)
-
-    } catch (err) {
-        write(`\r\n❌ Error starting dev server:\r\n${err}\r\n`)
-        shellInstance = null
-        signalWriter = null
     }
+};
 
-    installing = false
-    return shellInstance
-}
+/* ================================
+   VUE TEMPLATE
+================================ */
+const vueTemplate = {
+    "package.json": {
+        file: {
+            contents: JSON.stringify({
+                name: "vue-app", private: true, version: "0.0.0", type: "module",
+                scripts: { dev: "vite --host" },
+                dependencies: { vue: "^3.4.0" },
+                devDependencies: { vite: "^5.0.0", "@vitejs/plugin-vue": "^5.0.0" }
+            }, null, 2)
+        }
+    },
+    "vite.config.js": {
+        file: {
+            contents: viteConfig(
+                `import vue from '@vitejs/plugin-vue'`,
+                `vue()`
+            )
+        }
+    },
+    "index.html": { file: { contents: baseHtml("/src/main.js") } },
+    src: {
+        directory: {
+            "main.js": {
+                file: {
+                    contents: `
+import { createApp } from "vue";
+import App from "./App.vue";
+createApp(App).mount("#app");
+`
+                }
+            },
+            "App.vue": {
+                file: {
+                    contents: `
+<template>
+  <div>
+    <h1>Vue Template</h1>
+    <p>Running inside WebContainer</p>
+    <button>Start Building</button>
+  </div>
+</template>
+`
+                }
+            }
+        }
+    }
+};
 
-export async function killDevServer() {
-    if (!signalWriter) return false
-    try { await signalWriter.write("\x03") } catch { }
-    return true
-}
+/* ================================
+   SVELTE TEMPLATE
+================================ */
+const svelteTemplate = {
+    "package.json": {
+        file: {
+            contents: JSON.stringify({
+                name: "svelte-app", private: true, version: "0.0.0", type: "module",
+                scripts: { dev: "vite --host" },
+                devDependencies: {
+                    vite: "^5.0.0",
+                    svelte: "^4.0.0",
+                    "@sveltejs/vite-plugin-svelte": "^3.0.0"
+                }
+            }, null, 2)
+        }
+    },
+    "vite.config.js": {
+        file: {
+            contents: viteConfig(
+                `import { svelte } from '@sveltejs/vite-plugin-svelte'`,
+                `svelte()`
+            )
+        }
+    },
+    "index.html": { file: { contents: baseHtml("/src/main.js") } },
+    src: {
+        directory: {
+            "main.js": {
+                file: {
+                    contents: `
+import App from './App.svelte'
+const app = new App({ target: document.getElementById('app') })
+export default app
+`
+                }
+            },
+            "App.svelte": {
+                file: {
+                    contents: `
+<script>
+  let name = "Svelte Template";
+</script>
 
-export function resetDevServer() {
-    try { signalWriter?.releaseLock() } catch { }
-    shellInstance = null
-    signalWriter = null
-    installing = false
-    depsInstalled = false
-}
+<h1>{name}</h1>
+<p>Running inside WebContainer</p>
+<button>Start Building</button>
+`
+                }
+            }
+        }
+    }
+};
 
-export function getCurrentProcess() {
-    return shellInstance
-}
+/* ================================
+   VANILLA JS TEMPLATE
+================================ */
+const jsTemplate = {
+    "package.json": {
+        file: {
+            contents: JSON.stringify({
+                name: "js-app", private: true, type: "module",
+                scripts: { dev: "vite --host" },
+                devDependencies: { vite: "^5.0.0" }
+            }, null, 2)
+        }
+    },
+    "vite.config.js": {
+        file: {
+            contents: viteConfig("", "")
+        }
+    },
+    "index.html": { file: { contents: baseHtml("/main.js") } },
+    "main.js": {
+        file: {
+            contents: `
+document.getElementById("root").innerHTML = \`
+  <h1>JavaScript Template</h1>
+  <p>Running inside WebContainer</p>
+  <button>Start Building</button>
+\`;
+`
+        }
+    }
+};
 
-export function isServerRunning() {
-    return shellInstance !== null
+/* ================================
+   TYPESCRIPT TEMPLATE
+================================ */
+const tsTemplate = {
+    "package.json": {
+        file: {
+            contents: JSON.stringify({
+                name: "ts-app", private: true, type: "module",
+                scripts: { dev: "vite --host" },
+                devDependencies: { vite: "^5.0.0", typescript: "^5.0.0" }
+            }, null, 2)
+        }
+    },
+    "vite.config.js": {
+        file: {
+            contents: viteConfig("", "")
+        }
+    },
+    "index.html": { file: { contents: baseHtml("/main.ts") } },
+    "main.ts": {
+        file: {
+            contents: `
+const root = document.getElementById("root")!;
+root.innerHTML = \`
+  <h1>TypeScript Template</h1>
+  <p>Running inside WebContainer</p>
+  <button>Start Building</button>
+\`;
+`
+        }
+    }
+};
+
+/* ================================
+   PURE HTML TEMPLATE
+   ✅ Now uses a minimal vite setup so server-ready fires correctly.
+      Previously had no package.json — npm install && npm run dev hung forever.
+================================ */
+const htmlTemplate = {
+    "package.json": {
+        file: {
+            contents: JSON.stringify({
+                name: "html-app", private: true,
+                scripts: { dev: "vite --host" },
+                devDependencies: { vite: "^5.0.0" }
+            }, null, 2)
+        }
+    },
+    "vite.config.js": {
+        file: { contents: viteConfig("", "") }
+    },
+    "index.html": {
+        file: {
+            contents: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>HTML Template</title>
+  <style>
+    body {
+      margin: 0; height: 100vh; display: flex;
+      align-items: center; justify-content: center;
+      background: #1e1e1e; color: #e2e8f0;
+      font-family: Inter, system-ui, sans-serif;
+      flex-direction: column; gap: 16px;
+    }
+    h1 { font-size: 42px; margin: 0; }
+    button {
+      background: linear-gradient(90deg,#6366f1,#8b5cf6);
+      border: none; padding: 12px 22px; border-radius: 10px;
+      color: white; font-weight: 600; cursor: pointer; font-size: 15px;
+    }
+  </style>
+</head>
+<body>
+  <h1>HTML + CSS + JS</h1>
+  <button onclick="alert('Hello from Codeflow!')">Click me</button>
+  <script>
+    console.log('HTML template running inside WebContainer');
+  </script>
+</body>
+</html>
+`
+        }
+    }
+};
+
+/* ================================
+   NODE.JS TEMPLATE
+================================ */
+const nodeTemplate = {
+    "package.json": {
+        file: {
+            contents: JSON.stringify({
+                name: "node-app", version: "1.0.0", type: "commonjs",
+                scripts: { dev: "node --watch server.js", start: "node server.js" }
+            }, null, 2)
+        }
+    },
+    "server.js": {
+        file: {
+            contents: `
+const http = require('http');
+const PORT = 3000;
+
+const server = http.createServer((req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Headers', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+
+    if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
+
+    if (req.url === '/' && req.method === 'GET') {
+        res.writeHead(200);
+        res.end(JSON.stringify({ message: 'Hello from Node.js!', status: 'ok' }));
+    } else if (req.url === '/api/ping' && req.method === 'GET') {
+        res.writeHead(200);
+        res.end(JSON.stringify({ pong: true, timestamp: Date.now() }));
+    } else {
+        res.writeHead(404);
+        res.end(JSON.stringify({ error: 'Not found', path: req.url }));
+    }
+});
+
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(\`Server listening on http://localhost:\${PORT}\`);
+});
+`
+        }
+    }
+};
+
+/* ================================
+   EXPRESS TEMPLATE
+================================ */
+const expressTemplate = {
+    "package.json": {
+        file: {
+            contents: JSON.stringify({
+                name: "express-app", version: "1.0.0", type: "commonjs",
+                scripts: { dev: "nodemon server.js", start: "node server.js" },
+                dependencies: { express: "^4.18.2" },
+                devDependencies: { nodemon: "^3.0.0" }
+            }, null, 2)
+        }
+    },
+    "server.js": {
+        file: {
+            contents: `
+const express = require('express');
+const app = express();
+const PORT = 3000;
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// ✅ CORS — handles preflight OPTIONS before any route
+app.options('*', (req, res) => {
+    res.set({
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
+        'Access-Control-Allow-Headers': '*',
+        'Access-Control-Max-Age': '86400',
+    });
+    res.sendStatus(204);
+});
+
+app.use((req, res, next) => {
+    res.set({
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
+        'Access-Control-Allow-Headers': '*',
+    });
+    next();
+});
+
+app.get('/', (req, res) => {
+    res.json({ message: 'Hello from Express!', status: 'ok' });
+});
+
+app.get('/api/items', (req, res) => {
+    res.json({ items: ['apple', 'banana', 'cherry'] });
+});
+
+app.post('/api/items', (req, res) => {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    res.status(201).json({ created: name, id: Date.now() });
+});
+
+app.delete('/api/items/:id', (req, res) => {
+    res.json({ deleted: req.params.id });
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(\`Express server listening on http://localhost:\${PORT}\`);
+});
+`
+        }
+    }
+};
+
+/* ================================
+   FASTIFY TEMPLATE
+================================ */
+const fastifyTemplate = {
+    "package.json": {
+        file: {
+            contents: JSON.stringify({
+                name: "fastify-app", version: "1.0.0", type: "module",
+                scripts: { dev: "node --watch server.js", start: "node server.js" },
+                dependencies: { fastify: "^4.26.0", "@fastify/cors": "^9.0.0" }
+            }, null, 2)
+        }
+    },
+    "server.js": {
+        file: {
+            contents: `
+import Fastify from 'fastify';
+import cors from '@fastify/cors';
+
+const app = Fastify({ logger: false });
+const PORT = 3000;
+
+// ✅ CORS plugin — must register before routes
+await app.register(cors, { origin: '*' });
+
+app.get('/', async () => {
+    return { message: 'Hello from Fastify!', status: 'ok' };
+});
+
+app.get('/api/items', async () => {
+    return { items: ['apple', 'banana', 'cherry'] };
+});
+
+app.post('/api/items', async (request, reply) => {
+    const { name } = request.body;
+    if (!name) return reply.status(400).send({ error: 'name is required' });
+    return reply.status(201).send({ created: name, id: Date.now() });
+});
+
+app.delete('/api/items/:id', async (request) => {
+    return { deleted: request.params.id };
+});
+
+app.listen({ port: PORT, host: '0.0.0.0' }, (err) => {
+    if (err) { console.error(err); process.exit(1); }
+    console.log(\`Fastify server listening on http://localhost:\${PORT}\`);
+});
+`
+        }
+    }
+};
+
+/* ================================
+   TEMPLATE MAP
+================================ */
+const templates = {
+    react: reactTemplate,
+    vue: vueTemplate,
+    svelte: svelteTemplate,
+    javascript: jsTemplate,
+    typescript: tsTemplate,
+    html: htmlTemplate,
+    node: nodeTemplate,
+    express: expressTemplate,
+    fastify: fastifyTemplate,
+};
+
+/* ================================
+   MOUNT FUNCTION
+================================ */
+export async function mountTemplate(webcontainer, templateId) {
+    const files = templates[templateId];
+    if (!files) throw new Error(`Unknown template: ${templateId}`);
+
+    await webcontainer.fs.rm("/workspace", { recursive: true, force: true }).catch(() => {});
+    await webcontainer.fs.mkdir("/workspace").catch(() => {});
+    await webcontainer.mount({ workspace: { directory: files } });
 }
