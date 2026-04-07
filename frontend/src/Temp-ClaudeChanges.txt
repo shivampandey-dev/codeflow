@@ -1,47 +1,216 @@
-const express = require("express");
-const bodyParser = require("body-parser");
+import { Box } from "@mantine/core";
+import { useMediaQuery } from "@mantine/hooks";
+import { Allotment } from "allotment";
+import "allotment/dist/style.css";
+import { useState, useRef } from "react";
 
-const basicRoutes = require("./routes/basicRoutes");
-const bodyRoutes = require("./routes/bodyRoutes");
-const authRoutes = require("./routes/authRoutes");
-const fileRoutes = require("./routes/fileRoutes");
-const advancedRoutes = require("./routes/advancedRoutes");
+import FileTree from "./FileTree/FileTree";
+import Preview from "./Preview/Preview";
+import Terminal from "./Terminal/Terminal";
+import CodeEditor from "./Editor/CodeEditor";
 
-const app = express();
-const PORT = 3000;
+// ─── Icons ────────────────────────────────────────────────────────────────────
+const FilesIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+        <polyline points="13 2 13 9 20 9" />
+    </svg>
+);
+const EditorIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="16 18 22 12 16 6" />
+        <polyline points="8 6 2 12 8 18" />
+    </svg>
+);
+const PreviewIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+        <line x1="8" y1="21" x2="16" y2="21" />
+        <line x1="12" y1="17" x2="12" y2="21" />
+    </svg>
+);
+const TerminalIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="4 17 10 11 4 5" />
+        <line x1="12" y1="19" x2="20" y2="19" />
+    </svg>
+);
 
-// ─── CORS — intercept OPTIONS before bodyParser touches anything ───────────
-app.options("*", (req, res) => {
-    res.set({
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-        "Access-Control-Allow-Headers": "*",
-        "Access-Control-Max-Age": "86400",   // cache preflight 24h
-    });
-    res.sendStatus(204);
-});
+// ─── Mobile Tab Layout ────────────────────────────────────────────────────────
+function MobileLayout({ previewUrl, logs, process, webcontainer, projectPath }) {
+    const [activeTab, setActiveTab] = useState("editor");
 
-// ─── CORS headers on every real request ───────────────────────────────────
-app.use((req, res, next) => {
-    res.set({
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-        "Access-Control-Allow-Headers": "*",
-    });
-    next();
-});
+    const tabs = [
+        { key: "files",    label: "Files",    Icon: FilesIcon    },
+        { key: "editor",   label: "Editor",   Icon: EditorIcon   },
+        { key: "preview",  label: "Preview",  Icon: PreviewIcon  },
+        { key: "terminal", label: "Terminal", Icon: TerminalIcon },
+    ];
 
-// ─── Body parsing ──────────────────────────────────────────────────────────
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+    return (
+        <Box style={{
+            height: "100dvh", width: "100%", background: "#0b1220",
+            display: "flex", flexDirection: "column", overflow: "hidden",
+        }}>
+            {/* Tab Bar */}
+            <Box style={{
+                display: "flex", borderBottom: "1px solid #1a2740",
+                background: "#0d1626", flexShrink: 0, height: "46px",
+            }}>
+                {tabs.map(({ key, label, Icon }) => {
+                    const isActive = activeTab === key;
+                    return (
+                        <button key={key} onClick={() => setActiveTab(key)} style={{
+                            flex: 1, height: "100%", display: "flex", flexDirection: "column",
+                            alignItems: "center", justifyContent: "center", gap: "2px",
+                            border: "none",
+                            borderBottom: isActive ? "2px solid #3b82f6" : "2px solid transparent",
+                            background: "transparent",
+                            color: isActive ? "#60a5fa" : "#4a5a72",
+                            cursor: "pointer", fontSize: "9px", fontWeight: 700,
+                            letterSpacing: "0.06em", textTransform: "uppercase",
+                            transition: "color 0.15s ease, border-color 0.15s ease",
+                            padding: "0 4px", outline: "none", WebkitTapHighlightColor: "transparent",
+                        }}>
+                            <Icon />
+                            {label}
+                        </button>
+                    );
+                })}
+            </Box>
 
-// ─── Routes ───────────────────────────────────────────────────────────────
-app.use("/api", basicRoutes);
-app.use("/api/body", bodyRoutes);
-app.use("/api/auth", authRoutes);
-app.use("/api/file", fileRoutes);
-app.use("/api/advanced", advancedRoutes);
+            {/* Panels */}
+            <Box style={{ flex: 1, minHeight: 0, position: "relative" }}>
+                {tabs.map(({ key }) => (
+                    <Box key={key} style={{
+                        position: "absolute", inset: 0,
+                        display: activeTab === key ? "flex" : "none",
+                        flexDirection: "column", overflow: "hidden",
+                    }}>
+                        {key === "files" && <FileTree webcontainer={webcontainer} logs={logs} />}
 
-app.listen(PORT, () => {
-    console.log(`🚀 Server running at http://localhost:${PORT}`);
-});
+                        {key === "editor" && (
+                            // ✅ previewUrl passed here too
+                            <CodeEditor previewUrl={previewUrl} />
+                        )}
+
+                        {key === "preview" && (
+                            <Box style={{ height: "100%", width: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                                <Preview previewUrl={previewUrl} logs={logs} />
+                            </Box>
+                        )}
+
+                        {key === "terminal" && (
+                            <Terminal
+                                logs={logs} process={process}
+                                webcontainer={webcontainer} projectPath={projectPath}
+                            />
+                        )}
+                    </Box>
+                ))}
+            </Box>
+        </Box>
+    );
+}
+
+// ─── Desktop Layout ───────────────────────────────────────────────────────────
+export default function WorkspaceLayout({
+    previewUrl,   // ✅ single source of truth — comes from Workspace.jsx server-ready
+    logs,
+    process,
+    webcontainer,
+    projectPath,
+    isBackend,
+}) {
+    const isMobile = useMediaQuery("(max-width: 768px)");
+
+    const [terminalFullscreen, setTerminalFullscreen] = useState(false);
+    const [editorFullscreen,   setEditorFullscreen]   = useState(false);
+
+    const verticalAllotmentRef   = useRef(null);
+    const horizontalAllotmentRef = useRef(null);
+
+    const handleTerminalFullscreen = (value) => {
+        setTerminalFullscreen(value);
+        if (value) {
+            setEditorFullscreen(false);
+            horizontalAllotmentRef.current?.resize([18, 57, 25]);
+            verticalAllotmentRef.current?.resize([0, 9999]);
+        } else {
+            verticalAllotmentRef.current?.resize([750, 250]);
+        }
+    };
+
+    const handleEditorFullscreen = (value) => {
+        setEditorFullscreen(value);
+        if (value) {
+            setTerminalFullscreen(false);
+            verticalAllotmentRef.current?.resize([9999, 0]);
+            horizontalAllotmentRef.current?.resize([0, 9999, 0]);
+        } else {
+            verticalAllotmentRef.current?.resize([750, 250]);
+            horizontalAllotmentRef.current?.resize([18, 57, 25]);
+        }
+    };
+
+    if (isMobile) {
+        return (
+            <MobileLayout
+                previewUrl={previewUrl} logs={logs} process={process}
+                webcontainer={webcontainer} projectPath={projectPath}
+            />
+        );
+    }
+
+    return (
+        <Box style={{ height: "100dvh", position: "relative", overflow: "hidden", background: "#0b1220" }}>
+            <Allotment vertical ref={verticalAllotmentRef} defaultSizes={[75, 25]} style={{ height: "100%" }}>
+
+                {/* TOP PANE */}
+                <Allotment.Pane minSize={0} snap>
+                    <Allotment ref={horizontalAllotmentRef} defaultSizes={[18, 57, 25]} style={{ height: "100%" }}>
+
+                        {/* FILE TREE */}
+                        <Allotment.Pane preferredSize={220} minSize={0}>
+                            <Box style={{ height: "100%", overflow: "hidden" }}>
+                                <FileTree webcontainer={webcontainer} logs={logs} />
+                            </Box>
+                        </Allotment.Pane>
+
+                        {/* EDITOR — ✅ previewUrl passed as prop */}
+                        <Allotment.Pane minSize={0}>
+                            <Box style={{ height: "100%", overflow: "hidden" }}>
+                                <CodeEditor
+                                    previewUrl={previewUrl}
+                                    fullscreen={editorFullscreen}
+                                    setFullscreen={handleEditorFullscreen}
+                                />
+                            </Box>
+                        </Allotment.Pane>
+
+                        {/* PREVIEW */}
+                        <Allotment.Pane preferredSize={300} minSize={0}>
+                            <Box style={{ height: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                                <Preview previewUrl={previewUrl} logs={logs} />
+                            </Box>
+                        </Allotment.Pane>
+
+                    </Allotment>
+                </Allotment.Pane>
+
+                {/* TERMINAL */}
+                <Allotment.Pane minSize={0} snap>
+                    <Box style={{ height: "100%", overflow: "hidden", background: "#0b1220" }}>
+                        <Terminal
+                            logs={logs} process={process}
+                            webcontainer={webcontainer} projectPath={projectPath}
+                            fullscreen={terminalFullscreen}
+                            setFullscreen={handleTerminalFullscreen}
+                        />
+                    </Box>
+                </Allotment.Pane>
+
+            </Allotment>
+        </Box>
+    );
+}
