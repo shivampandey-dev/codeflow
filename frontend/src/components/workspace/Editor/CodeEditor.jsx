@@ -4,15 +4,16 @@ import { getLanguage } from "./languageMap"
 import Tabs from "./Tabs"
 import SettingsPanel from "./SettingsPanel"
 import image from "../../../Assets/logo.png"
-
+import { Bug } from "lucide-react";
 import { useSettingsStore } from "../../../store/settingsStore"
 import { loadMonacoTheme } from "../../../utils/loadTheme"
 import { deriveUIColors } from "../../../utils/themeColors"
 
 import { useEffect, useRef, useState } from "react"
 
-import { ActionIcon } from "@mantine/core"
+import { ActionIcon, Tooltip } from "@mantine/core"
 import { Settings, Expand, Minimize } from "lucide-react" // ✅ added
+import ApiTester from "./ApiTester"
 
 export default function CodeEditor({ fullscreen, setFullscreen }) {
 
@@ -45,8 +46,9 @@ export default function CodeEditor({ fullscreen, setFullscreen }) {
 
     const saveTimeout = useRef(null)
     const watcherStarted = useRef(false)
-
+    const [serverUrl, setServerUrl] = useState("http://localhost:3000");
     const [settingsOpen, setSettingsOpen] = useState(false)
+    const [apiOpen, setApiOpen] = useState(false);
 
     /* ================= THEME ================= */
 
@@ -67,7 +69,20 @@ export default function CodeEditor({ fullscreen, setFullscreen }) {
     }, [theme, monaco])
 
     /* ================= TYPES ================= */
+    useEffect(() => {
+        if (!webcontainer) return;
 
+        const handler = (port, url) => {
+            setServerUrl(url); // real webcontainer URL
+        };
+
+        webcontainer.on("server-ready", handler);
+
+        // cleanup isn't strictly needed but good practice
+        return () => {
+            webcontainer.off?.("server-ready", handler);
+        };
+    }, [webcontainer]);
     async function loadTypes(monacoInstance) {
 
         if (!webcontainer) return
@@ -238,34 +253,57 @@ export default function CodeEditor({ fullscreen, setFullscreen }) {
         }}>
 
             {/* HEADER */}
+            {/* HEADER */}
             <div
                 style={{
                     display: "flex",
                     alignItems: "center",
                     borderBottom: `1px solid ${ui.border}`,
-                    background: ui.sidebarBg
+                    background: ui.sidebarBg,
+                    minWidth: 0,          // ← allow shrinking
+                    overflow: "hidden",   // ← clip tabs, not buttons
                 }}
             >
-                <div style={{ background: editorBg, flex: 1 }}>
+                {/* Tabs — scrollable, takes available space */}
+                <div style={{ background: editorBg, flex: 1, minWidth: 0, overflow: "hidden" }}>
                     <Tabs />
                 </div>
 
-                {/* 🔥 EXPAND BUTTON */}
-                <ActionIcon
-                    variant="subtle"
-                    onClick={() => setFullscreen(!fullscreen)}
+                {/* Action buttons — never shrink or hide */}
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        flexShrink: 0,       // ← NEVER shrink
+                        gap: 2,
+                        paddingRight: 4,
+                        background: ui.sidebarBg,
+                    }}
                 >
-                    {fullscreen ? <Minimize size={16} /> : <Expand size={16} />}
-                </ActionIcon>
+                    {/* EXPAND */}
+                    <Tooltip label={fullscreen ? "Exit Fullscreen" : "Enter Fullscreen"} withArrow
+                        styles={{ tooltip: { fontSize: "11px", padding: "4px 8px" } }}>
+                        <ActionIcon variant="subtle" onClick={() => setFullscreen(!fullscreen)}>
+                            {fullscreen ? <Minimize size={16} /> : <Expand size={16} />}
+                        </ActionIcon>
+                    </Tooltip>
 
-                {/* SETTINGS */}
-                <ActionIcon
-                    variant="subtle"
-                    mr="xs"
-                    onClick={() => setSettingsOpen(true)}
-                >
-                    <Settings size={16} />
-                </ActionIcon>
+                    {/* SETTINGS */}
+                    <Tooltip label="Editor Settings" withArrow
+                        styles={{ tooltip: { fontSize: "11px", padding: "4px 8px" } }}>
+                        <ActionIcon variant="subtle" onClick={() => setSettingsOpen(true)}>
+                            <Settings size={16} />
+                        </ActionIcon>
+                    </Tooltip>
+
+                    {/* API TESTER */}
+                    <Tooltip label="API Tester" withArrow
+                        styles={{ tooltip: { fontSize: "11px", padding: "4px 8px" } }}>
+                        <ActionIcon variant="subtle" mr="xs" onClick={() => setApiOpen(true)}>
+                            <Bug size={16} />
+                        </ActionIcon>
+                    </Tooltip>
+                </div>
             </div>
 
             {/* EDITOR */}
@@ -329,7 +367,11 @@ export default function CodeEditor({ fullscreen, setFullscreen }) {
                 opened={settingsOpen}
                 close={() => setSettingsOpen(false)}
             />
-
+            <ApiTester
+                defaultUrl={serverUrl}
+                opened={apiOpen}
+                close={() => setApiOpen(false)}
+            />
         </div>
     )
 }
