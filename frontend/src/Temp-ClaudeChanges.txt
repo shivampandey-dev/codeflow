@@ -1,216 +1,242 @@
-import { Box } from "@mantine/core";
-import { useMediaQuery } from "@mantine/hooks";
-import { Allotment } from "allotment";
-import "allotment/dist/style.css";
-import { useState, useRef } from "react";
+import Editor, { useMonaco } from "@monaco-editor/react"
+import { useEditorStore } from "../../../store/editorStore"
+import { getLanguage } from "./languageMap"
+import Tabs from "./Tabs"
+import SettingsPanel from "./SettingsPanel"
+import image from "../../../Assets/logo.png"
+import { Bug } from "lucide-react";
+import { useSettingsStore } from "../../../store/settingsStore"
+import { loadMonacoTheme } from "../../../utils/loadTheme"
+import { deriveUIColors } from "../../../utils/themeColors"
+import { useEffect, useRef, useState } from "react"
+import { ActionIcon, Tooltip } from "@mantine/core"
+import { Settings, Expand, Minimize } from "lucide-react"
+import ApiTester from "./ApiTester"
 
-import FileTree from "./FileTree/FileTree";
-import Preview from "./Preview/Preview";
-import Terminal from "./Terminal/Terminal";
-import CodeEditor from "./Editor/CodeEditor";
+// ✅ previewUrl comes as a prop — single source of truth from Workspace.jsx
+//    No more local server-ready listener racing against the one in Workspace.jsx
+export default function CodeEditor({ previewUrl, fullscreen, setFullscreen }) {
 
-// ─── Icons ────────────────────────────────────────────────────────────────────
-const FilesIcon = () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
-        <polyline points="13 2 13 9 20 9" />
-    </svg>
-);
-const EditorIcon = () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="16 18 22 12 16 6" />
-        <polyline points="8 6 2 12 8 18" />
-    </svg>
-);
-const PreviewIcon = () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-        <line x1="8" y1="21" x2="16" y2="21" />
-        <line x1="12" y1="17" x2="12" y2="21" />
-    </svg>
-);
-const TerminalIcon = () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="4 17 10 11 4 5" />
-        <line x1="12" y1="19" x2="20" y2="19" />
-    </svg>
-);
+    const {
+        activeFile,
+        contents,
+        updateContent,
+        saveFile,
+        webcontainer,
+    } = useEditorStore()
 
-// ─── Mobile Tab Layout ────────────────────────────────────────────────────────
-function MobileLayout({ previewUrl, logs, process, webcontainer, projectPath }) {
-    const [activeTab, setActiveTab] = useState("editor");
+    const {
+        theme, themeData, setThemeData,
+        fontSize, editorFontFamily, wordWrap,
+        minimap, cursorStyle, autoSave, autoSaveDelay,
+    } = useSettingsStore()
 
-    const tabs = [
-        { key: "files",    label: "Files",    Icon: FilesIcon    },
-        { key: "editor",   label: "Editor",   Icon: EditorIcon   },
-        { key: "preview",  label: "Preview",  Icon: PreviewIcon  },
-        { key: "terminal", label: "Terminal", Icon: TerminalIcon },
-    ];
+    const monaco = useMonaco()
+    const fileName = activeFile?.split("/").pop()
+    const language = getLanguage(fileName || "")
 
-    return (
-        <Box style={{
-            height: "100dvh", width: "100%", background: "#0b1220",
-            display: "flex", flexDirection: "column", overflow: "hidden",
-        }}>
-            {/* Tab Bar */}
-            <Box style={{
-                display: "flex", borderBottom: "1px solid #1a2740",
-                background: "#0d1626", flexShrink: 0, height: "46px",
-            }}>
-                {tabs.map(({ key, label, Icon }) => {
-                    const isActive = activeTab === key;
-                    return (
-                        <button key={key} onClick={() => setActiveTab(key)} style={{
-                            flex: 1, height: "100%", display: "flex", flexDirection: "column",
-                            alignItems: "center", justifyContent: "center", gap: "2px",
-                            border: "none",
-                            borderBottom: isActive ? "2px solid #3b82f6" : "2px solid transparent",
-                            background: "transparent",
-                            color: isActive ? "#60a5fa" : "#4a5a72",
-                            cursor: "pointer", fontSize: "9px", fontWeight: 700,
-                            letterSpacing: "0.06em", textTransform: "uppercase",
-                            transition: "color 0.15s ease, border-color 0.15s ease",
-                            padding: "0 4px", outline: "none", WebkitTapHighlightColor: "transparent",
-                        }}>
-                            <Icon />
-                            {label}
-                        </button>
-                    );
-                })}
-            </Box>
+    const saveTimeout   = useRef(null)
+    const watcherStarted = useRef(false)
 
-            {/* Panels */}
-            <Box style={{ flex: 1, minHeight: 0, position: "relative" }}>
-                {tabs.map(({ key }) => (
-                    <Box key={key} style={{
-                        position: "absolute", inset: 0,
-                        display: activeTab === key ? "flex" : "none",
-                        flexDirection: "column", overflow: "hidden",
-                    }}>
-                        {key === "files" && <FileTree webcontainer={webcontainer} logs={logs} />}
+    const [settingsOpen, setSettingsOpen] = useState(false)
+    const [apiOpen,      setApiOpen]      = useState(false)
 
-                        {key === "editor" && (
-                            // ✅ previewUrl passed here too
-                            <CodeEditor previewUrl={previewUrl} />
-                        )}
+    /* ── Theme ─────────────────────────────────────────────────────────── */
+    const editorBg = themeData?.colors?.["editor.background"] || "#1e1e1e"
+    const ui = deriveUIColors(editorBg)
 
-                        {key === "preview" && (
-                            <Box style={{ height: "100%", width: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                                <Preview previewUrl={previewUrl} logs={logs} />
-                            </Box>
-                        )}
-
-                        {key === "terminal" && (
-                            <Terminal
-                                logs={logs} process={process}
-                                webcontainer={webcontainer} projectPath={projectPath}
-                            />
-                        )}
-                    </Box>
-                ))}
-            </Box>
-        </Box>
-    );
-}
-
-// ─── Desktop Layout ───────────────────────────────────────────────────────────
-export default function WorkspaceLayout({
-    previewUrl,   // ✅ single source of truth — comes from Workspace.jsx server-ready
-    logs,
-    process,
-    webcontainer,
-    projectPath,
-    isBackend,
-}) {
-    const isMobile = useMediaQuery("(max-width: 768px)");
-
-    const [terminalFullscreen, setTerminalFullscreen] = useState(false);
-    const [editorFullscreen,   setEditorFullscreen]   = useState(false);
-
-    const verticalAllotmentRef   = useRef(null);
-    const horizontalAllotmentRef = useRef(null);
-
-    const handleTerminalFullscreen = (value) => {
-        setTerminalFullscreen(value);
-        if (value) {
-            setEditorFullscreen(false);
-            horizontalAllotmentRef.current?.resize([18, 57, 25]);
-            verticalAllotmentRef.current?.resize([0, 9999]);
-        } else {
-            verticalAllotmentRef.current?.resize([750, 250]);
+    useEffect(() => {
+        if (!monaco) return
+        async function applyTheme() {
+            const data = await loadMonacoTheme(monaco, theme)
+            setThemeData(data)
         }
-    };
+        applyTheme()
+    }, [theme, monaco])
 
-    const handleEditorFullscreen = (value) => {
-        setEditorFullscreen(value);
-        if (value) {
-            setTerminalFullscreen(false);
-            verticalAllotmentRef.current?.resize([9999, 0]);
-            horizontalAllotmentRef.current?.resize([0, 9999, 0]);
-        } else {
-            verticalAllotmentRef.current?.resize([750, 250]);
-            horizontalAllotmentRef.current?.resize([18, 57, 25]);
+    /* ── Type definitions ──────────────────────────────────────────────── */
+    async function loadTypes(monacoInstance) {
+        if (!webcontainer) return
+        const loaded = new Set()
+
+        async function walk(dir) {
+            let entries
+            try { entries = await webcontainer.fs.readdir(dir) }
+            catch { return }
+
+            for (const entry of entries) {
+                const path = `${dir}/${entry}`
+                try {
+                    const stat = await webcontainer.fs.stat(path)
+                    if (stat.isDirectory()) {
+                        if (["bin", "dist", "build"].includes(entry)) continue
+                        await walk(path)
+                    } else if (entry.endsWith(".d.ts")) {
+                        if (loaded.has(path)) continue
+                        const content = await webcontainer.fs.readFile(path, "utf-8")
+                        monacoInstance.languages.typescript.javascriptDefaults.addExtraLib(
+                            content, `file://${path}`
+                        )
+                        loaded.add(path)
+                    }
+                } catch { }
+            }
         }
-    };
-
-    if (isMobile) {
-        return (
-            <MobileLayout
-                previewUrl={previewUrl} logs={logs} process={process}
-                webcontainer={webcontainer} projectPath={projectPath}
-            />
-        );
+        await walk("/node_modules")
     }
 
+    async function watchNodeModules(monacoInstance) {
+        if (!webcontainer || watcherStarted.current) return
+        watcherStarted.current = true
+        try {
+            const watcher = await webcontainer.fs.watch("/node_modules", { recursive: true })
+            watcher.on("change", async () => { await loadTypes(monacoInstance) })
+        } catch { }
+    }
+
+    /* ── Monaco init ───────────────────────────────────────────────────── */
+    function handleEditorMount(editor, monacoInstance) {
+        monacoInstance.languages.typescript.javascriptDefaults.setCompilerOptions({
+            target:                     monacoInstance.languages.typescript.ScriptTarget.ES2020,
+            module:                     monacoInstance.languages.typescript.ModuleKind.ESNext,
+            moduleResolution:           monacoInstance.languages.typescript.ModuleResolutionKind.NodeJs,
+            allowNonTsExtensions:       true,
+            allowJs:                    true,
+            jsx:                        monacoInstance.languages.typescript.JsxEmit.ReactJSX,
+            esModuleInterop:            true,
+            allowSyntheticDefaultImports: true,
+            resolveJsonModule:          true,
+            strict:                     false,
+            noEmit:                     true,
+        })
+
+        loadTypes(monacoInstance)
+        watchNodeModules(monacoInstance)
+
+        editor.addCommand(
+            monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.KeyS,
+            async () => await saveFile()
+        )
+        editor.addCommand(
+            monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.Comma,
+            () => setSettingsOpen(true)
+        )
+    }
+
+    /* ── Models ────────────────────────────────────────────────────────── */
+    useEffect(() => {
+        if (!monaco) return
+        Object.entries(contents).forEach(([path, code]) => {
+            const uri  = monaco.Uri.parse(`file://${path}`)
+            let model  = monaco.editor.getModel(uri)
+            const safeCode = code ?? ""
+            if (!model) {
+                monaco.editor.createModel(safeCode, getLanguage(path), uri)
+            } else if (model.getValue() !== safeCode) {
+                model.setValue(safeCode)
+            }
+        })
+    }, [contents, monaco])
+
+    /* ── Auto save ─────────────────────────────────────────────────────── */
+    useEffect(() => {
+        if (!activeFile || !autoSave) return
+        if (saveTimeout.current) clearTimeout(saveTimeout.current)
+        saveTimeout.current = setTimeout(() => { saveFile() }, autoSaveDelay)
+        return () => { if (saveTimeout.current) clearTimeout(saveTimeout.current) }
+    }, [activeFile, contents, autoSave, autoSaveDelay])
+
+    /* ── Render ────────────────────────────────────────────────────────── */
     return (
-        <Box style={{ height: "100dvh", position: "relative", overflow: "hidden", background: "#0b1220" }}>
-            <Allotment vertical ref={verticalAllotmentRef} defaultSizes={[75, 25]} style={{ height: "100%" }}>
+        <div style={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}>
 
-                {/* TOP PANE */}
-                <Allotment.Pane minSize={0} snap>
-                    <Allotment ref={horizontalAllotmentRef} defaultSizes={[18, 57, 25]} style={{ height: "100%" }}>
+            {/* HEADER */}
+            <div style={{
+                display: "flex", alignItems: "center",
+                borderBottom: `1px solid ${ui.border}`,
+                background: ui.sidebarBg, minWidth: 0, overflow: "hidden",
+            }}>
+                {/* Tabs */}
+                <div style={{ background: editorBg, flex: 1, minWidth: 0, overflow: "hidden" }}>
+                    <Tabs />
+                </div>
 
-                        {/* FILE TREE */}
-                        <Allotment.Pane preferredSize={220} minSize={0}>
-                            <Box style={{ height: "100%", overflow: "hidden" }}>
-                                <FileTree webcontainer={webcontainer} logs={logs} />
-                            </Box>
-                        </Allotment.Pane>
+                {/* Action buttons */}
+                <div style={{
+                    display: "flex", alignItems: "center", flexShrink: 0,
+                    gap: 2, paddingRight: 4, background: ui.sidebarBg,
+                }}>
+                    <Tooltip label={fullscreen ? "Exit Fullscreen" : "Enter Fullscreen"} withArrow
+                        styles={{ tooltip: { fontSize: "11px", padding: "4px 8px" } }}>
+                        <ActionIcon variant="subtle" onClick={() => setFullscreen(!fullscreen)}>
+                            {fullscreen ? <Minimize size={16} /> : <Expand size={16} />}
+                        </ActionIcon>
+                    </Tooltip>
 
-                        {/* EDITOR — ✅ previewUrl passed as prop */}
-                        <Allotment.Pane minSize={0}>
-                            <Box style={{ height: "100%", overflow: "hidden" }}>
-                                <CodeEditor
-                                    previewUrl={previewUrl}
-                                    fullscreen={editorFullscreen}
-                                    setFullscreen={handleEditorFullscreen}
-                                />
-                            </Box>
-                        </Allotment.Pane>
+                    <Tooltip label="Editor Settings" withArrow
+                        styles={{ tooltip: { fontSize: "11px", padding: "4px 8px" } }}>
+                        <ActionIcon variant="subtle" onClick={() => setSettingsOpen(true)}>
+                            <Settings size={16} />
+                        </ActionIcon>
+                    </Tooltip>
 
-                        {/* PREVIEW */}
-                        <Allotment.Pane preferredSize={300} minSize={0}>
-                            <Box style={{ height: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                                <Preview previewUrl={previewUrl} logs={logs} />
-                            </Box>
-                        </Allotment.Pane>
+                    {/* ✅ Only show API Tester button for backend projects
+                          (previewUrl will be null for frontend-only projects
+                           until server-ready fires, so button is always safe) */}
+                    <Tooltip label="API Tester" withArrow
+                        styles={{ tooltip: { fontSize: "11px", padding: "4px 8px" } }}>
+                        <ActionIcon variant="subtle" mr="xs" onClick={() => setApiOpen(true)}>
+                            <Bug size={16} />
+                        </ActionIcon>
+                    </Tooltip>
+                </div>
+            </div>
 
-                    </Allotment>
-                </Allotment.Pane>
+            {/* EDITOR */}
+            <div style={{ flex: 1, minHeight: 0 }}>
+                {!activeFile ? (
+                    <div style={{
+                        height: "100%", display: "flex", alignItems: "center",
+                        justifyContent: "center", background: editorBg, position: "relative",
+                    }}>
+                        <img src={image} style={{
+                            position: "absolute", width: 520,
+                            opacity: 0.08, filter: "blur(1.5px) brightness(1.1)",
+                        }} />
+                    </div>
+                ) : (
+                    <Editor
+                        height="100%"
+                        path={`file://${activeFile}`}
+                        language={language}
+                        theme={theme}
+                        options={{
+                            fontSize, fontFamily: editorFontFamily,
+                            wordWrap: wordWrap ? "on" : "off",
+                            minimap: { enabled: minimap },
+                            cursorStyle, automaticLayout: true,
+                            quickSuggestions: true,
+                            suggestOnTriggerCharacters: true,
+                            wordBasedSuggestions: true,
+                        }}
+                        onChange={(value) => updateContent(value ?? "")}
+                        onMount={handleEditorMount}
+                    />
+                )}
+            </div>
 
-                {/* TERMINAL */}
-                <Allotment.Pane minSize={0} snap>
-                    <Box style={{ height: "100%", overflow: "hidden", background: "#0b1220" }}>
-                        <Terminal
-                            logs={logs} process={process}
-                            webcontainer={webcontainer} projectPath={projectPath}
-                            fullscreen={terminalFullscreen}
-                            setFullscreen={handleTerminalFullscreen}
-                        />
-                    </Box>
-                </Allotment.Pane>
+            <SettingsPanel
+                opened={settingsOpen}
+                close={() => setSettingsOpen(false)}
+            />
 
-            </Allotment>
-        </Box>
-    );
+            {/* ✅ defaultUrl comes directly from previewUrl prop —
+                 same URL the Preview iframe uses, no race condition */}
+            <ApiTester
+                defaultUrl={previewUrl || ""}
+                opened={apiOpen}
+                close={() => setApiOpen(false)}
+            />
+        </div>
+    )
 }
