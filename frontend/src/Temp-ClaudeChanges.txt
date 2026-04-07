@@ -1,5 +1,6 @@
 const express = require("express");
 const bodyParser = require("body-parser");
+
 const basicRoutes = require("./routes/basicRoutes");
 const bodyRoutes = require("./routes/bodyRoutes");
 const authRoutes = require("./routes/authRoutes");
@@ -9,26 +10,32 @@ const advancedRoutes = require("./routes/advancedRoutes");
 const app = express();
 const PORT = 3000;
 
-// Middleware
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+// ─── CORS — intercept OPTIONS before bodyParser touches anything ───────────
+app.options("*", (req, res) => {
+    res.set({
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+        "Access-Control-Allow-Headers": "*",
+        "Access-Control-Max-Age": "86400",   // cache preflight 24h
+    });
+    res.sendStatus(204);
+});
 
-// CORS — must be before all routes
+// ─── CORS headers on every real request ───────────────────────────────────
 app.use((req, res, next) => {
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Headers", "*");
-    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-
-    // Handle preflight — browser sends OPTIONS before POST/PUT/PATCH/DELETE
-    // If you don't respond 204 here, it falls into your routes and gets a 404
-    if (req.method === "OPTIONS") {
-        return res.sendStatus(204);
-    }
-
+    res.set({
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+        "Access-Control-Allow-Headers": "*",
+    });
     next();
 });
 
-// Routes
+// ─── Body parsing ──────────────────────────────────────────────────────────
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// ─── Routes ───────────────────────────────────────────────────────────────
 app.use("/api", basicRoutes);
 app.use("/api/body", bodyRoutes);
 app.use("/api/auth", authRoutes);
