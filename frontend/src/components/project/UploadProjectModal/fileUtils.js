@@ -1,5 +1,5 @@
 import JSZip from "jszip";
-
+import { saveProject } from "./projectStorage";
 // Files/folders to always skip
 const SKIP_ENTRIES = new Set([
     "node_modules",
@@ -151,7 +151,7 @@ export async function folderFilesToTree(files) {
         const text = await file.text();
         setNestedPath(tree, pathParts, text);
     }
-
+    await saveProject("current", { tree, warnings, hasPackageJson });
     return { tree, warnings, hasPackageJson };
 }
 
@@ -219,5 +219,6 @@ export async function zipFileToTree(zipFile) {
     });
 
     await Promise.all(promises);
+    await saveProject("current", { tree, warnings, hasPackageJson });
     return { tree, warnings, hasPackageJson };
 }

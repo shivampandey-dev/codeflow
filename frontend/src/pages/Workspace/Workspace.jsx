@@ -4,6 +4,7 @@ import { mountTemplate } from "../runtime/webcontainer/mountFiles";
 import { startDevServer } from "../runtime/webcontainer/startDevServer";
 import WorkspaceLayout from "../../components/workspace/WorkspaceLayout";
 import { startBackendServer } from "../runtime/webcontainer/Startbackendserver";
+import { loadProject, clearProject } from "../../components/project/UploadProjectModal/projectStorage"; // ← ADD
 
 const BACKEND_TEMPLATES = new Set(["node", "express", "fastify", "cli", "package"]);
 
@@ -29,15 +30,11 @@ export default function Workspace({ templateId }) {
         initializedRef.current = true;
 
         previewChannelRef.current = new BroadcastChannel("webcontainer-preview");
-
         previewChannelRef.current.onmessage = (event) => {
             if (event.data?.type === "preview-request") {
                 const cachedUrl = localStorage.getItem("preview-url");
                 if (cachedUrl) {
-                    previewChannelRef.current.postMessage({
-                        type: "preview-ready",
-                        url: cachedUrl,
-                    });
+                    previewChannelRef.current.postMessage({ type: "preview-ready", url: cachedUrl });
                 }
             }
         };
@@ -49,22 +46,27 @@ export default function Workspace({ templateId }) {
                 setWebcontainer(wc);
 
                 if (isUpload) {
-                    // ── Read tree from opener (new tab flow) ──────────────
-                    const tree = window.opener?.uploadedTree;
+                    // ── 1. Try opener (fresh upload from landing page) ──
+                    let tree = window.opener?.uploadedTree;
 
+                    // ── 2. Fall back to IndexedDB (page refresh) ────────
                     if (!tree) {
-                        setLogs("❌ No uploaded project found. Please go back and upload again.\r\n");
-                        return;
+                        setLogs((prev) => prev + "🔄 Restoring project from cache...\r\n");
+                        const saved = await loadProject("current");
+                        tree = saved?.tree ?? null;
+                    } else {
+                        delete window.opener.uploadedTree;
                     }
 
-                    // Clean up reference immediately
-                    delete window.opener.uploadedTree;
+                    if (!tree) {
+                        setLogs("❌ No project found. Please go back and upload again.\r\n");
+                        return;
+                    }
 
                     setLogs((prev) => prev + "📁 Mounting uploaded project...\r\n");
                     await wc.mount({ workspace: { directory: tree } });
 
                 } else {
-                    // ── Template flow ─────────────────────────────────────
                     setLogs((prev) => prev + "📁 Mounting project files...\r\n");
                     await mountTemplate(wc, templateId);
                 }
@@ -101,9 +103,14 @@ export default function Workspace({ templateId }) {
         }
 
         init();
-
         return () => previewChannelRef.current?.close();
     }, [templateId]);
+
+    // ── Pass clearProject down so user can reset from the UI ────────────────
+    const handleClearProject = async () => {
+        await clearProject("current");
+        window.location.href = "/"; // send back to landing
+    };
 
     return (
         <WorkspaceLayout
@@ -113,6 +120,7 @@ export default function Workspace({ templateId }) {
             webcontainer={webcontainer}
             projectPath={projectPath}
             isBackend={isBackend}
+            onClearProject={handleClearProject} // ← wire up to a "Close Project" button in your header
         />
     );
 }
