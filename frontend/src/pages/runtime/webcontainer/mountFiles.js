@@ -558,7 +558,193 @@ app.listen({ port: PORT, host: '0.0.0.0' }, (err) => {
 };
 
 
+const nextTemplate = {
+    "package.json": {
+        file: {
+            contents: JSON.stringify({
+                name: "next-app",
+                version: "0.0.0",
+                private: true,
+                scripts: {
+                    dev: "next dev",
+                    build: "next build",
+                    start: "next start"
+                },
+                dependencies: {
+                    next: "^14.0.0",
+                    react: "^18.2.0",
+                    "react-dom": "^18.2.0"
+                }
+            }, null, 2)
+        }
+    },
 
+    "next.config.js": {
+        file: {
+            contents: `/** @type {import('next').NextConfig} */
+const nextConfig = {}
+module.exports = nextConfig
+`
+        }
+    },
+
+    "app": {
+        directory: {
+            "layout.jsx": {
+                file: {
+                    contents: `
+export const metadata = { title: 'Next.js App' }
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body style={{ margin: 0, background: '#1e1e1e', color: '#e2e8f0', fontFamily: 'Inter, system-ui, sans-serif' }}>
+        {children}
+      </body>
+    </html>
+  )
+}
+`
+                }
+            },
+            "page.jsx": {
+                file: {
+                    contents: `
+export default function Home() {
+  return (
+    <main style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+      <h1 style={{ fontSize: 42, background: 'linear-gradient(90deg,#38bdf8,#22c55e,#a855f7)', WebkitBackgroundClip: 'text', color: 'transparent' }}>
+        Next.js Template
+      </h1>
+      <p style={{ color: '#94a3b8' }}>Running inside WebContainer</p>
+      <button style={{ background: 'linear-gradient(90deg,#6366f1,#8b5cf6)', border: 'none', padding: '12px 22px', borderRadius: 10, color: 'white', fontWeight: 600, cursor: 'pointer' }}>
+        Start Building
+      </button>
+    </main>
+  )
+}
+`
+                }
+            },
+            "api": {
+                directory: {
+                    "hello": {
+                        directory: {
+                            "route.js": {
+                                file: {
+                                    contents: `
+export async function GET() {
+  return Response.json({ message: 'Hello from Next.js API!', status: 'ok' })
+}
+`
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+};
+const astroTemplate = {
+    "package.json": {
+        file: {
+            contents: JSON.stringify({
+                name: "astro-app",
+                version: "0.0.0",
+                private: true,
+                type: "module",
+                scripts: {
+                    dev: "astro dev --host",
+                    build: "astro build",
+                    preview: "astro preview"
+                },
+                dependencies: {
+                    astro: "^4.0.0"
+                }
+            }, null, 2)
+        }
+    },
+
+    "astro.config.mjs": {
+        file: {
+            contents: `
+import { defineConfig } from 'astro/config'
+
+export default defineConfig({
+  server: { host: true, port: 3000 }
+})
+`
+        }
+    },
+
+    "src": {
+        directory: {
+            "pages": {
+                directory: {
+                    "index.astro": {
+                        file: {
+                            contents: `---
+const title = "Astro Template"
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>{title}</title>
+  <style>
+    body {
+      margin: 0; height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      background: #1e1e1e; color: #e2e8f0;
+      font-family: Inter, system-ui, sans-serif;
+    }
+    main { text-align: center; }
+    h1 {
+      font-size: 42px;
+      background: linear-gradient(90deg,#38bdf8,#22c55e,#a855f7);
+      -webkit-background-clip: text; color: transparent;
+    }
+    p { color: #94a3b8; }
+    button {
+      background: linear-gradient(90deg,#6366f1,#8b5cf6);
+      border: none; padding: 12px 22px; border-radius: 10px;
+      color: white; font-weight: 600; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>{title}</h1>
+    <p>Running inside WebContainer</p>
+    <button>Start Building</button>
+  </main>
+</body>
+</html>
+`
+                        }
+                    },
+                    "api": {
+                        directory: {
+                            "hello.js": {
+                                file: {
+                                    contents: `
+export async function GET() {
+  return new Response(JSON.stringify({ message: 'Hello from Astro API!' }), {
+    headers: { 'Content-Type': 'application/json' }
+  })
+}
+`
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+};
 /* ================================
    TEMPLATE MAP
 ================================ */
@@ -576,6 +762,8 @@ const templates = {
     node: nodeTemplate,
     express: expressTemplate,
     fastify: fastifyTemplate,
+    next: nextTemplate,
+    astro: astroTemplate,
 };
 
 

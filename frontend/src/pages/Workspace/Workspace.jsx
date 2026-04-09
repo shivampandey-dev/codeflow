@@ -3,11 +3,11 @@ import { bootWebContainer } from "../runtime/webcontainer/webcontainer";
 import { mountTemplate } from "../runtime/webcontainer/mountFiles";
 import { startDevServer } from "../runtime/webcontainer/startDevServer";
 import WorkspaceLayout from "../../components/workspace/WorkspaceLayout";
-import { startBackendServer } from "../runtime/webcontainer/Startbackendserver";
+import { startBackendServer } from "../runtime/webcontainer/startBackendServer";
 import { loadProject, clearProject } from "../../components/project/UploadProjectModal/projectStorage"; // ← ADD
 
 const BACKEND_TEMPLATES = new Set(["node", "express", "fastify", "cli", "package"]);
-
+const FULLSTACK_TEMPLATES = new Set(["next", "astro"]);
 export default function Workspace({ templateId }) {
     const [previewUrl, setPreviewUrl] = useState(null);
     const [logs, setLogs] = useState("");
@@ -87,6 +87,16 @@ export default function Workspace({ templateId }) {
                         false
                     );
                     setProcess(devProcess);
+
+                    // ✅ NEW — fullstack branch
+                } else if (FULLSTACK_TEMPLATES.has(templateId)) {
+                    setLogs((prev) => prev + "⚡ Starting fullstack dev server...\r\n");
+                    const devProcess = await startDevServer(
+                        wc,
+                        (data) => setLogs((prev) => prev + data)
+                    );
+                    setProcess(devProcess);
+
                 } else {
                     setLogs((prev) => prev + "⚡ Starting dev server...\r\n");
                     const devProcess = await startDevServer(
