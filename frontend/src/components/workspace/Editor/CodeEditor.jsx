@@ -12,10 +12,10 @@ import { deriveUIColors } from "../../../utils/themeColors"
 import { useEffect, useRef, useState } from "react"
 
 import { ActionIcon, Tooltip } from "@mantine/core"
-import { Settings, Expand, Minimize } from "lucide-react" // ✅ added
+import { Settings, Expand, Minimize } from "lucide-react"
 import ApiTester from "./ApiTester"
 
-export default function CodeEditor({ fullscreen, setFullscreen }) {
+export default function CodeEditor({ previewUrl: previewUrlProp, fullscreen, setFullscreen }) {
 
     const {
         activeFile,
@@ -29,7 +29,6 @@ export default function CodeEditor({ fullscreen, setFullscreen }) {
         theme,
         themeData,
         setThemeData,
-
         fontSize,
         editorFontFamily,
         wordWrap,
@@ -46,52 +45,50 @@ export default function CodeEditor({ fullscreen, setFullscreen }) {
 
     const saveTimeout = useRef(null)
     const watcherStarted = useRef(false)
-    const [serverUrl, setServerUrl] = useState("http://localhost:3000");
+    const [serverUrl, setServerUrl] = useState("")
     const [settingsOpen, setSettingsOpen] = useState(false)
-    const [apiOpen, setApiOpen] = useState(false);
+    const [apiOpen, setApiOpen] = useState(false)
+
+    /* ================= SERVER URL ================= */
+
+    // Source of truth: previewUrl prop passed from WorkspaceLayout
+    useEffect(() => {
+        if (previewUrlProp) setServerUrl(previewUrlProp);
+    }, [previewUrlProp]);
+
+    // Fallback: server-ready event, only used if prop isn't available yet
+    useEffect(() => {
+        if (!webcontainer) return;
+        const handler = (port, url) => {
+            if (!previewUrlProp) setServerUrl(url);
+        };
+        webcontainer.on("server-ready", handler);
+        return () => webcontainer.off?.("server-ready", handler);
+    }, [webcontainer, previewUrlProp]);
 
     /* ================= THEME ================= */
 
-    const editorBg =
-        themeData?.colors?.["editor.background"] || "#1e1e1e"
-
+    const editorBg = themeData?.colors?.["editor.background"] || "#1e1e1e"
     const ui = deriveUIColors(editorBg)
 
     useEffect(() => {
         if (!monaco) return
-
         async function applyTheme() {
             const data = await loadMonacoTheme(monaco, theme)
             setThemeData(data)
         }
-
         applyTheme()
     }, [theme, monaco])
 
     /* ================= TYPES ================= */
-    useEffect(() => {
-        if (!webcontainer) return;
 
-        const handler = (port, url) => {
-            setServerUrl(url); // real webcontainer URL
-        };
-
-        webcontainer.on("server-ready", handler);
-
-        // cleanup isn't strictly needed but good practice
-        return () => {
-            webcontainer.off?.("server-ready", handler);
-        };
-    }, [webcontainer]);
     async function loadTypes(monacoInstance) {
-
         if (!webcontainer) return
 
         const loaded = new Set()
 
         async function walk(dir) {
             let entries
-
             try {
                 entries = await webcontainer.fs.readdir(dir)
             } catch {
@@ -99,38 +96,21 @@ export default function CodeEditor({ fullscreen, setFullscreen }) {
             }
 
             for (const entry of entries) {
-
                 const path = `${dir}/${entry}`
-
                 try {
-
                     const stat = await webcontainer.fs.stat(path)
-
                     if (stat.isDirectory()) {
-
-                        if (
-                            entry === ".bin" ||
-                            entry === "dist" ||
-                            entry === "build"
-                        ) continue
-
+                        if (entry === ".bin" || entry === "dist" || entry === "build") continue
                         await walk(path)
-
                     } else if (entry.endsWith(".d.ts")) {
-
                         if (loaded.has(path)) continue
-
-                        const content =
-                            await webcontainer.fs.readFile(path, "utf-8")
-
+                        const content = await webcontainer.fs.readFile(path, "utf-8")
                         monacoInstance.languages.typescript.javascriptDefaults.addExtraLib(
                             content,
                             `file://${path}`
                         )
-
                         loaded.add(path)
                     }
-
                 } catch { }
             }
         }
@@ -139,33 +119,24 @@ export default function CodeEditor({ fullscreen, setFullscreen }) {
     }
 
     async function watchNodeModules(monacoInstance) {
-
         if (!webcontainer) return
         if (watcherStarted.current) return
-
         watcherStarted.current = true
-
         try {
-            const watcher = await webcontainer.fs.watch("/node_modules", {
-                recursive: true
-            })
-
+            const watcher = await webcontainer.fs.watch("/node_modules", { recursive: true })
             watcher.on("change", async () => {
                 await loadTypes(monacoInstance)
             })
-
         } catch { }
     }
 
     /* ================= MONACO INIT ================= */
 
     function handleEditorMount(editor, monacoInstance) {
-
         monacoInstance.languages.typescript.javascriptDefaults.setCompilerOptions({
             target: monacoInstance.languages.typescript.ScriptTarget.ES2020,
             module: monacoInstance.languages.typescript.ModuleKind.ESNext,
-            moduleResolution:
-                monacoInstance.languages.typescript.ModuleResolutionKind.NodeJs,
+            moduleResolution: monacoInstance.languages.typescript.ModuleResolutionKind.NodeJs,
             allowNonTsExtensions: true,
             allowJs: true,
             jsx: monacoInstance.languages.typescript.JsxEmit.ReactJSX,
@@ -193,94 +164,66 @@ export default function CodeEditor({ fullscreen, setFullscreen }) {
     /* ================= MODELS ================= */
 
     useEffect(() => {
-
         if (!monaco) return
 
         Object.entries(contents).forEach(([path, code]) => {
-
             const uri = monaco.Uri.parse(`file://${path}`)
-
             let model = monaco.editor.getModel(uri)
-
             const safeCode = code ?? ""
 
             if (!model) {
-                monaco.editor.createModel(
-                    safeCode,
-                    getLanguage(path),
-                    uri
-                )
+                monaco.editor.createModel(safeCode, getLanguage(path), uri)
             } else if (model.getValue() !== safeCode) {
                 model.setValue(safeCode)
             }
-
         })
-
     }, [contents, monaco])
 
     /* ================= AUTO SAVE ================= */
 
     useEffect(() => {
-
         if (!activeFile) return
         if (!autoSave) return
 
-        if (saveTimeout.current) {
-            clearTimeout(saveTimeout.current)
-        }
+        if (saveTimeout.current) clearTimeout(saveTimeout.current)
 
         saveTimeout.current = setTimeout(() => {
             saveFile()
         }, autoSaveDelay)
 
         return () => {
-            if (saveTimeout.current) {
-                clearTimeout(saveTimeout.current)
-            }
+            if (saveTimeout.current) clearTimeout(saveTimeout.current)
         }
-
     }, [activeFile, contents, autoSave, autoSaveDelay])
 
     /* ================= UI ================= */
 
     return (
-
-        <div style={{
-            height: "100%",
-            display: "flex",
-            flexDirection: "column",
-            minHeight: 0
-        }}>
+        <div style={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}>
 
             {/* HEADER */}
-            {/* HEADER */}
-            <div
-                style={{
-                    display: "flex",
-                    alignItems: "center",
-                    borderBottom: `1px solid ${ui.border}`,
-                    background: ui.sidebarBg,
-                    minWidth: 0,          // ← allow shrinking
-                    overflow: "hidden",   // ← clip tabs, not buttons
-                }}
-            >
+            <div style={{
+                display: "flex",
+                alignItems: "center",
+                borderBottom: `1px solid ${ui.border}`,
+                background: ui.sidebarBg,
+                minWidth: 0,
+                overflow: "hidden",
+            }}>
                 {/* Tabs — scrollable, takes available space */}
                 <div style={{ background: editorBg, flex: 1, minWidth: 0, overflow: "hidden" }}>
                     <Tabs />
                 </div>
 
                 {/* Action buttons — never shrink or hide */}
-                <div
-                    style={{
-                        display: "flex",
-                        alignItems: "center",
-                        flexShrink: 0,       // ← NEVER shrink
-                        gap: 2,
-                        paddingRight: 4,
-                        background: ui.sidebarBg,
-                    }}
-                >
-                    {/* EXPAND */}
+                <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    flexShrink: 0,
+                    gap: 2,
+                    paddingRight: 4,
+                    background: ui.sidebarBg,
+                }}>
                     <Tooltip label={fullscreen ? "Exit Fullscreen" : "Enter Fullscreen"} withArrow
                         styles={{ tooltip: { fontSize: "11px", padding: "4px 8px" } }}>
                         <ActionIcon variant="subtle" onClick={() => setFullscreen(!fullscreen)}>
@@ -288,7 +231,6 @@ export default function CodeEditor({ fullscreen, setFullscreen }) {
                         </ActionIcon>
                     </Tooltip>
 
-                    {/* SETTINGS */}
                     <Tooltip label="Editor Settings" withArrow
                         styles={{ tooltip: { fontSize: "11px", padding: "4px 8px" } }}>
                         <ActionIcon variant="subtle" onClick={() => setSettingsOpen(true)}>
@@ -296,7 +238,6 @@ export default function CodeEditor({ fullscreen, setFullscreen }) {
                         </ActionIcon>
                     </Tooltip>
 
-                    {/* API TESTER */}
                     <Tooltip label="API Tester" withArrow
                         styles={{ tooltip: { fontSize: "11px", padding: "4px 8px" } }}>
                         <ActionIcon variant="subtle" mr="xs" onClick={() => setApiOpen(true)}>
@@ -308,19 +249,15 @@ export default function CodeEditor({ fullscreen, setFullscreen }) {
 
             {/* EDITOR */}
             <div style={{ flex: 1, minHeight: 0 }}>
-
                 {!activeFile ? (
-
-                    <div
-                        style={{
-                            height: "100%",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            background: editorBg,
-                            position: "relative"
-                        }}
-                    >
+                    <div style={{
+                        height: "100%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: editorBg,
+                        position: "relative"
+                    }}>
                         <img
                             src={image}
                             style={{
@@ -331,15 +268,12 @@ export default function CodeEditor({ fullscreen, setFullscreen }) {
                             }}
                         />
                     </div>
-
                 ) : (
-
                     <Editor
                         height="100%"
                         path={`file://${activeFile}`}
                         language={language}
                         theme={theme}
-
                         options={{
                             fontSize,
                             fontFamily: editorFontFamily,
@@ -351,16 +285,10 @@ export default function CodeEditor({ fullscreen, setFullscreen }) {
                             suggestOnTriggerCharacters: true,
                             wordBasedSuggestions: true
                         }}
-
-                        onChange={(value) =>
-                            updateContent(value ?? "")
-                        }
-
+                        onChange={(value) => updateContent(value ?? "")}
                         onMount={handleEditorMount}
                     />
-
                 )}
-
             </div>
 
             <SettingsPanel
@@ -368,9 +296,10 @@ export default function CodeEditor({ fullscreen, setFullscreen }) {
                 close={() => setSettingsOpen(false)}
             />
             <ApiTester
-                defaultUrl={serverUrl}
+                defaultUrl="http://localhost:3000"
                 opened={apiOpen}
                 close={() => setApiOpen(false)}
+                webcontainer={webcontainer}
             />
         </div>
     )

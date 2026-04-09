@@ -11,9 +11,6 @@ export async function startBackendServer(
     onServerStop,
     skipInstall = false
 ) {
-    // ── RESTART PATH ──────────────────────────────────────────────────────────
-    // jsh is still alive after Ctrl+C — only node/nodemon died.
-    // Skip the whole boot sequence and just re-run the right command.
     if (shellInstance && signalWriter && skipInstall) {
         onStopCallback = onServerStop
         const writeStatus = (tag) => onOutput?.(`\r\n__STATUS__:${tag}\r\n`)

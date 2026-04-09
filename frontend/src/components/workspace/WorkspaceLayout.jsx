@@ -120,7 +120,7 @@ function MobileLayout({ previewUrl, logs, process, webcontainer, projectPath }) 
                             <FileTree webcontainer={webcontainer} logs={logs} />
                         )}
                         {key === "editor" && (
-                            <CodeEditor />
+                            <CodeEditor previewUrl={previewUrl} />
                         )}
                         {key === "preview" && (
                             <Box style={{ height: "100%", width: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
@@ -229,6 +229,7 @@ export default function WorkspaceLayout({
                                 <CodeEditor
                                     fullscreen={editorFullscreen}
                                     setFullscreen={handleEditorFullscreen}
+                                    previewUrl={previewUrl}  
                                 />
                             </Box>
                         </Allotment.Pane>

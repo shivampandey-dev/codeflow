@@ -3,19 +3,10 @@ import { Drawer } from "@mantine/core";
 
 /* ─── design tokens ──────────────────────────────────────────────────── */
 const C = {
-    bg0: "#0d0f12",
-    bg1: "#13161b",
-    bg2: "#1a1e26",
-    bg3: "#222733",
-    border: "#2c3140",
-    accent: "#38bdf8",
-    accentDim: "#0ea5e920",
-    green: "#4ade80",
-    red: "#f87171",
-    yellow: "#fbbf24",
-    muted: "#5a6380",
-    text: "#c9d1e8",
-    textDim: "#7a849e",
+    bg0: "#0d0f12", bg1: "#13161b", bg2: "#1a1e26", bg3: "#222733",
+    border: "#2c3140", accent: "#38bdf8", accentDim: "#0ea5e920",
+    green: "#4ade80", red: "#f87171", yellow: "#fbbf24",
+    muted: "#5a6380", text: "#c9d1e8", textDim: "#7a849e",
     mono: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
     sans: "'DM Sans', 'Instrument Sans', sans-serif",
 };
@@ -25,20 +16,16 @@ const METHOD_COLORS = {
     PATCH: "#fb923c", DELETE: "#f87171", HEAD: "#a78bfa", OPTIONS: "#e879f9",
 };
 
-/* Methods that cannot carry a body. For these we NEVER send Content-Type
-   because that would trigger a CORS preflight the server may not handle. */
 const NO_BODY_METHODS = ["GET", "HEAD", "DELETE", "OPTIONS"];
 
 /* ─── micro-components ───────────────────────────────────────────────── */
 const Input = ({ style, ...p }) => (
-    <input
-        {...p}
-        style={{
-            background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 5,
-            color: C.text, padding: "6px 10px", fontSize: 12, fontFamily: C.mono,
-            outline: "none", width: "100%", boxSizing: "border-box", transition: "border-color .15s",
-            ...style,
-        }}
+    <input {...p} style={{
+        background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 5,
+        color: C.text, padding: "6px 10px", fontSize: 12, fontFamily: C.mono,
+        outline: "none", width: "100%", boxSizing: "border-box", transition: "border-color .15s",
+        ...style,
+    }}
         onFocus={e => { e.target.style.borderColor = C.accent; p.onFocus?.(e); }}
         onBlur={e => { e.target.style.borderColor = C.border; p.onBlur?.(e); }}
     />
@@ -73,7 +60,6 @@ function KVEditor({ rows, onChange, placeholder = ["Key", "Value"], fileSupport 
     const add = () => onChange([...rows, { key: "", value: "", enabled: true, file: null }]);
     const del = i => onChange(rows.filter((_, idx) => idx !== i));
     const upd = (i, f, v) => onChange(rows.map((r, idx) => idx === i ? { ...r, [f]: v } : r));
-
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {rows.map((row, i) => (
@@ -103,7 +89,7 @@ function KVEditor({ rows, onChange, placeholder = ["Key", "Value"], fileSupport 
                     <button onClick={() => del(i)} style={{
                         background: "none", border: "none", color: C.muted,
                         cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "2px 5px", borderRadius: 3,
-                    }}>×</button>
+                    }}>x</button>
                 </div>
             ))}
             <Btn onClick={add} style={{ alignSelf: "flex-start", marginTop: 2 }}>+ Add Row</Btn>
@@ -163,20 +149,16 @@ function buildSnippets(method, url, hdrs, body) {
 function ResizeHandle({ onDrag }) {
     const dragging = useRef(false);
     const lastY = useRef(0);
-
     const onMouseDown = e => {
-        dragging.current = true;
-        lastY.current = e.clientY;
+        dragging.current = true; lastY.current = e.clientY;
         document.body.style.cursor = "ns-resize";
         document.body.style.userSelect = "none";
     };
-
     useEffect(() => {
         const onMove = e => {
             if (!dragging.current) return;
-            const delta = lastY.current - e.clientY; // drag up → bigger panel
+            onDrag(lastY.current - e.clientY);
             lastY.current = e.clientY;
-            onDrag(delta);
         };
         const onUp = () => {
             if (!dragging.current) return;
@@ -188,17 +170,12 @@ function ResizeHandle({ onDrag }) {
         window.addEventListener("mouseup", onUp);
         return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
     }, [onDrag]);
-
     return (
-        <div
-            onMouseDown={onMouseDown}
-            title="Drag to resize"
-            style={{
-                height: 10, cursor: "ns-resize", flexShrink: 0,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                background: C.bg1, borderTop: `1px solid ${C.border}`,
-                transition: "background .15s",
-            }}
+        <div onMouseDown={onMouseDown} title="Drag to resize" style={{
+            height: 10, cursor: "ns-resize", flexShrink: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            background: C.bg1, borderTop: `1px solid ${C.border}`, transition: "background .15s",
+        }}
             onMouseEnter={e => e.currentTarget.style.background = C.bg3}
             onMouseLeave={e => e.currentTarget.style.background = C.bg1}
         >
@@ -211,20 +188,61 @@ function ResizeHandle({ onDrag }) {
     );
 }
 
-/* ─── main component ─────────────────────────────────────────────────── */
-export default function ApiTester({ defaultUrl, opened, close }) {
+/* ─── smart URL builder ───────────────────────────────────────────────
+   Supports two modes transparently:
 
-    /* request state */
-    // const [serverUrl, setServerUrl] = useState(defaultUrl || "http://localhost:3000");
-    const [serverUrl, setServerUrl] = useState("");
+   Mode A — full URL in the server field (path field left blank):
+     serverUrl = "https://api.github.com/users"
+     path      = ""
+     result    = "https://api.github.com/users"
+
+   Mode B — base + path split:
+     serverUrl = "https://api.github.com"
+     path      = "/users"
+     result    = "https://api.github.com/users"
+
+   Both modes also respect query params added via the Params tab.
+──────────────────────────────────────────────────────────────────────── */
+function parseAndBuildUrl(rawServer, rawPath, queryParams, interpolate) {
+    let server = interpolate(rawServer || "").trim();
+    if (!server) return "";
+
+    // Auto-prepend https:// if the user forgot the scheme
+    if (!/^https?:\/\//i.test(server)) server = `https://${server}`;
+
+    let parsed;
+    try { parsed = new URL(server); }
+    catch { return server; }
+
+    // Pathname already embedded in the server URL (e.g. "/users" from "https://api.github.com/users")
+    let basePath = parsed.pathname.replace(/\/+$/, "");
+
+    // Extra path from the path field — optional
+    let extraPath = interpolate(rawPath || "").trim().replace(/\/+$/, "");
+    if (extraPath && !extraPath.startsWith("/")) extraPath = `/${extraPath}`;
+
+    // Combine: only append extraPath when it's a real non-trivial value
+    const combinedPath = extraPath && extraPath !== "/" ? `${basePath}${extraPath}` : basePath;
+
+    // Query string from the Params tab
+    const qs = queryParams
+        .filter(r => r.enabled && r.key)
+        .map(r => `${encodeURIComponent(interpolate(r.key))}=${encodeURIComponent(interpolate(r.value))}`)
+        .join("&");
+
+    const full = `${parsed.origin}${combinedPath}`;
+    return qs ? `${full}?${qs}` : full;
+}
+
+/* ─── main component ─────────────────────────────────────────────────── */
+export default function ApiTester({ defaultUrl, opened, close, webcontainer }) {
+
+    const [serverUrl, setServerUrl] = useState(defaultUrl || "");
     const [method, setMethod] = useState("GET");
-    const [path, setPath] = useState("/");
+    const [path, setPath] = useState("");
     const [activeTab, setActiveTab] = useState("params");
     const [queryParams, setQueryParams] = useState([{ key: "", value: "", enabled: true }]);
     const [headers, setHeaders] = useState([
-        /* ✅ Use Accept instead of Content-Type as default so GET doesn't
-              trigger a CORS preflight. Content-Type is added automatically
-              when a body is present. */
         { key: "Accept", value: "application/json", enabled: true },
     ]);
     const [bodyType, setBodyType] = useState("json");
@@ -236,17 +254,15 @@ export default function ApiTester({ defaultUrl, opened, close }) {
     const [authPass, setAuthPass] = useState("");
     const [authBearer, setAuthBearer] = useState("");
 
-    /* response state */
     const [response, setResponse] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [urlError, setUrlError] = useState("");
 
-    /* resizable response panel – starts at 240px, clamp 120–600 */
     const [respHeight, setRespHeight] = useState(240);
     const handleDrag = useCallback(delta => {
         setRespHeight(h => Math.min(600, Math.max(120, h + delta)));
     }, []);
 
-    /* utilities */
     const [history, setHistory] = useState(() => {
         try { return JSON.parse(localStorage.getItem("apitester_history") || "[]"); } catch { return []; }
     });
@@ -257,10 +273,10 @@ export default function ApiTester({ defaultUrl, opened, close }) {
     const [copyDone, setCopyDone] = useState(false);
     const abortRef = useRef(null);
 
-    /* sync when parent pushes a new webcontainer URL */
-    useEffect(() => { if (defaultUrl) setServerUrl(defaultUrl); }, [defaultUrl]);
+    useEffect(() => {
+        if (defaultUrl) setServerUrl(defaultUrl);
+    }, [defaultUrl]);
 
-    /* env interpolation */
     const interpolate = useCallback((str = "") => {
         const map = Object.fromEntries(
             envVars.filter(r => r.enabled && r.key).map(r => [r.key, r.value])
@@ -268,90 +284,152 @@ export default function ApiTester({ defaultUrl, opened, close }) {
         return str.replace(/\{\{(\w+)\}\}/g, (_, k) => map[k] ?? `{{${k}}}`);
     }, [envVars]);
 
-    /* build full URL */
     const buildUrl = useCallback(() => {
-        const base = `${path}`;   // ❗ no serverUrl
-        const params = queryParams
-            .filter(r => r.enabled && r.key)
-            .map(r => `${encodeURIComponent(r.key)}=${encodeURIComponent(r.value)}`)
-            .join("&");
-
-        return params ? `${base}?${params}` : base;
-    }, [path, queryParams]);
+        return parseAndBuildUrl(serverUrl, path, queryParams, interpolate);
+    }, [serverUrl, path, queryParams, interpolate]);
 
     /* ── SEND ─────────────────────────────────────────────────────────── */
     const send = async () => {
+        const finalUrl = buildUrl();
+        if (!finalUrl) {
+            setUrlError("Enter a URL — e.g. https://api.github.com/users");
+            return;
+        }
+        try { new URL(finalUrl); setUrlError(""); }
+        catch { setUrlError("Invalid URL — check the server URL field"); return; }
+
         setLoading(true);
         setResponse(null);
-        abortRef.current = new AbortController();
 
         try {
             const hdrs = {};
-
-            /* Copy user-defined headers, but skip Content-Type for methods
-               that have no body — this prevents a CORS preflight on GET etc. */
             headers.filter(r => r.enabled && r.key).forEach(r => {
                 const k = interpolate(r.key);
                 if (NO_BODY_METHODS.includes(method) && k.toLowerCase() === "content-type") return;
                 hdrs[k] = interpolate(r.value);
             });
 
-            /* Auth injection */
-            if (authType === "bearer" && authBearer) {
+            if (authType === "bearer" && authBearer)
                 hdrs["Authorization"] = `Bearer ${authBearer}`;
-            } else if (authType === "basic" && authUser) {
+            else if (authType === "basic" && authUser)
                 hdrs["Authorization"] = `Basic ${btoa(`${authUser}:${authPass}`)}`;
-            }
 
-            /* Body construction — only for methods that support it */
-            let body = undefined;
+            let bodyStr = undefined;
             if (!NO_BODY_METHODS.includes(method)) {
                 if (bodyType === "json" && rawBody) {
                     hdrs["Content-Type"] = "application/json";
-                    body = rawBody;
+                    bodyStr = rawBody;
                 } else if (bodyType === "urlencoded") {
-                    const encoded = urlEncRows
+                    bodyStr = urlEncRows
                         .filter(r => r.enabled && r.key)
                         .map(r => `${encodeURIComponent(r.key)}=${encodeURIComponent(r.value)}`)
                         .join("&");
                     hdrs["Content-Type"] = "application/x-www-form-urlencoded";
-                    body = encoded;
-                } else if (bodyType === "form") {
-                    const fd = new FormData();
-                    formRows.filter(r => r.enabled && r.key).forEach(r => {
-                        fd.append(r.key, r.isFile && r.file ? r.file : r.value);
-                    });
-                    body = fd;
-                    /* Do NOT set Content-Type for multipart — browser sets it with boundary */
                 }
             }
 
-            const url = buildUrl();
+            const url = finalUrl;
             const t0 = performance.now();
-            const res = await fetch(url, { method, headers: hdrs, body, signal: abortRef.current.signal });
+
+            // Config is inlined directly into the script string —
+            // avoids writing a separate JSON file with a hardcoded path
+            // that breaks across different WebContainer runtime environments.
+            const config = { url, method, headers: hdrs, body: bodyStr ?? null };
+
+            const nodeScript = `
+const http = require('http');
+const https = require('https');
+const { URL } = require('url');
+
+const config = ${JSON.stringify(config)};
+
+const parsedUrl = new URL(config.url);
+const isHttps = parsedUrl.protocol === 'https:';
+const lib = isHttps ? https : http;
+
+const options = {
+    hostname: parsedUrl.hostname,
+    port: parsedUrl.port || (isHttps ? 443 : 80),
+    path: parsedUrl.pathname + parsedUrl.search,
+    method: config.method,
+    headers: config.headers,
+};
+
+const req = lib.request(options, (res) => {
+    let data = '';
+    res.on('data', chunk => data += chunk);
+    res.on('end', () => {
+        process.stdout.write(JSON.stringify({
+            status: res.statusCode,
+            body: data
+        }));
+    });
+});
+
+req.on('error', (err) => {
+    process.stdout.write(JSON.stringify({ error: err.message }));
+});
+
+if (config.body) req.write(config.body);
+req.end();
+`;
+
+            await webcontainer.fs.writeFile('/workspace/.apitester_run.js', nodeScript);
+
+            const proc = await webcontainer.spawn('node', ['.apitester_run.js'], {
+                cwd: '/workspace'
+            });
+
+            let output = '';
+            proc.output.pipeTo(new WritableStream({
+                write(chunk) {
+                    output += typeof chunk === 'string' ? chunk : new TextDecoder().decode(chunk);
+                }
+            }));
+
+            await proc.exit;
+
+            webcontainer.fs.rm('/workspace/.apitester_run.js').catch(() => { });
+
             const elapsed = Math.round(performance.now() - t0);
-            const text = await res.text();
-            const size = new Blob([text]).size;
 
-            let pretty;
-            try { pretty = JSON.stringify(JSON.parse(text), null, 2); }
-            catch { pretty = text; }
+            let parsed;
+            try { parsed = JSON.parse(output); }
+            catch { parsed = { error: `Could not parse response: ${output}` }; }
 
-            const entry = { id: Date.now(), method, url, status: res.status, time: new Date().toLocaleTimeString() };
-            setHistory(h => {
-                const next = [entry, ...h].slice(0, 30);
-                try { localStorage.setItem("apitester_history", JSON.stringify(next)); } catch { }
-                return next;
-            });
+            if (parsed.error) {
+                setResponse({ status: "ERR", ok: false, body: parsed.error });
+            } else {
+                let pretty;
+                try { pretty = JSON.stringify(JSON.parse(parsed.body), null, 2); }
+                catch { pretty = parsed.body; }
 
-            setResponse({ status: res.status, ok: res.ok, body: pretty, elapsed, size });
+                const size = new Blob([pretty]).size;
+
+                const entry = {
+                    id: Date.now(), method, url,
+                    status: parsed.status,
+                    time: new Date().toLocaleTimeString()
+                };
+                setHistory(h => {
+                    const next = [entry, ...h].slice(0, 30);
+                    try { localStorage.setItem("apitester_history", JSON.stringify(next)); } catch { }
+                    return next;
+                });
+
+                setResponse({
+                    status: parsed.status,
+                    ok: parsed.status >= 200 && parsed.status < 300,
+                    body: pretty,
+                    elapsed,
+                    size
+                });
+            }
+
         } catch (err) {
-            setResponse({
-                status: err.name === "AbortError" ? "ABT" : "ERR",
-                ok: false,
-                body: err.name === "AbortError" ? "Request cancelled." : err.message,
-            });
+            setResponse({ status: "ERR", ok: false, body: err.message });
         }
+
         setLoading(false);
     };
 
@@ -379,9 +457,10 @@ export default function ApiTester({ defaultUrl, opened, close }) {
         a.click();
     };
 
+    // When loading from history, put the full URL in server field, clear path
     const loadFromHistory = h => {
-        try { const u = new URL(h.url); setServerUrl(u.origin); setPath(u.pathname); }
-        catch { setServerUrl(h.url); }
+        setServerUrl(h.url);
+        setPath("");
         setMethod(h.method);
         setShowHistory(false);
     };
@@ -396,6 +475,8 @@ export default function ApiTester({ defaultUrl, opened, close }) {
         Object.fromEntries(headers.filter(r => r.enabled && r.key).map(r => [r.key, r.value])),
         rawBody
     );
+
+    const previewUrl = buildUrl();
 
     /* ── RENDER ───────────────────────────────────────────────────────── */
     return (
@@ -419,7 +500,7 @@ export default function ApiTester({ defaultUrl, opened, close }) {
                 opened={opened} onClose={close}
                 title={
                     <span style={{ fontFamily: C.sans, fontWeight: 700, color: C.text, fontSize: 13, letterSpacing: ".02em" }}>
-                        <span style={{ color: C.accent }}>⬡</span> API Tester
+                        <span style={{ color: C.accent }}>&#11041;</span> API Tester
                     </span>
                 }
                 position="right" size={500}
@@ -435,14 +516,20 @@ export default function ApiTester({ defaultUrl, opened, close }) {
 
                     {/* ── TOOLBAR ─────────────────────────────────────────────── */}
                     <div style={{ padding: "10px 14px", borderBottom: `1px solid ${C.border}`, background: C.bg1, flexShrink: 0 }}>
+
+                        {/* URL field — accepts full URL or just base server */}
+                        <Label>URL / Server</Label>
                         <Input
                             value={serverUrl}
-                            onChange={e => setServerUrl(e.target.value)}
-                            placeholder="https://xxxx.webcontainer-api.io"
-                            style={{ marginBottom: 8 }}
+                            onChange={e => { setServerUrl(e.target.value); setUrlError(""); }}
+                            placeholder="https://api.github.com/users  or  https://api.github.com"
+                            style={{
+                                marginBottom: 6,
+                                borderColor: urlError ? C.red : undefined,
+                            }}
                         />
 
-                        <div style={{ display: "flex", gap: 6 }}>
+                        <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
                             <select value={method} onChange={e => setMethod(e.target.value)} style={{
                                 background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 5,
                                 color: METHOD_COLORS[method] || C.text, fontFamily: C.mono,
@@ -453,22 +540,46 @@ export default function ApiTester({ defaultUrl, opened, close }) {
                                 ))}
                             </select>
 
-                            <Input value={path} onChange={e => setPath(e.target.value)} placeholder="/api/endpoint" style={{ flex: 1 }} />
+                            {/* Extra path — optional when full URL is already in server field */}
+                            <Input
+                                value={path}
+                                onChange={e => setPath(e.target.value)}
+                                placeholder="/extra/path  (optional)"
+                                style={{ flex: 1 }}
+                            />
 
                             {loading
-                                ? <Btn variant="danger" onClick={cancel} style={{ flexShrink: 0 }}>✕ Cancel</Btn>
+                                ? <Btn variant="danger" onClick={cancel} style={{ flexShrink: 0 }}>Cancel</Btn>
                                 : <button className="api-send" onClick={send} style={{
                                     background: C.accent, border: "none", borderRadius: 5,
                                     color: C.bg0, cursor: "pointer", flexShrink: 0, fontFamily: C.sans,
                                     fontWeight: 700, fontSize: 12, padding: "6px 16px", transition: "all .15s", letterSpacing: ".02em",
-                                }}>Send ▶</button>
+                                }}>Send</button>
                             }
                         </div>
 
-                        <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+                        {/* Live preview of the final composed URL */}
+                        {previewUrl && (
+                            <div style={{
+                                fontSize: 10, fontFamily: C.mono, color: C.accent,
+                                background: C.accentDim, border: `1px solid ${C.accent}25`,
+                                borderRadius: 4, padding: "4px 8px", marginBottom: 4,
+                                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                            }} title={previewUrl}>
+                                {previewUrl}
+                            </div>
+                        )}
+
+                        {urlError && (
+                            <div style={{ fontSize: 10, color: C.red, fontFamily: C.mono, marginBottom: 4 }}>
+                                {urlError}
+                            </div>
+                        )}
+
+                        <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
                             <Btn onClick={() => setShowEnv(!showEnv)}>{"{}"} Env</Btn>
-                            <Btn onClick={() => setShowHistory(!showHistory)}>⏱ History ({history.length})</Btn>
-                            <Btn onClick={() => setSnippetLang(snippetLang ? null : "curl")}>{"</"} Snippets</Btn>
+                            <Btn onClick={() => setShowHistory(!showHistory)}>History ({history.length})</Btn>
+                            <Btn onClick={() => setSnippetLang(snippetLang ? null : "curl")}>Snippets</Btn>
                         </div>
                     </div>
 
@@ -605,7 +716,7 @@ export default function ApiTester({ defaultUrl, opened, close }) {
                                         <div>
                                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                                                 <Label>JSON Body</Label>
-                                                <Btn onClick={formatJson} style={{ fontSize: 10 }}>✦ Format</Btn>
+                                                <Btn onClick={formatJson} style={{ fontSize: 10 }}>Format</Btn>
                                             </div>
                                             <textarea className="api-ta" value={rawBody} onChange={e => setRawBody(e.target.value)}
                                                 rows={10} placeholder={'{\n  "key": "value"\n}'} spellCheck={false} style={{
@@ -641,7 +752,7 @@ export default function ApiTester({ defaultUrl, opened, close }) {
                                 {authType === "basic" && (
                                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                                         <div><Label>Username</Label><Input value={authUser} onChange={e => setAuthUser(e.target.value)} placeholder="username" /></div>
-                                        <div><Label>Password</Label><Input type="password" value={authPass} onChange={e => setAuthPass(e.target.value)} placeholder="••••••••" /></div>
+                                        <div><Label>Password</Label><Input type="password" value={authPass} onChange={e => setAuthPass(e.target.value)} placeholder="password" /></div>
                                     </div>
                                 )}
                                 {authType === "none" && <div style={{ color: C.muted, fontSize: 12, fontFamily: C.mono }}>No authentication</div>}
@@ -649,31 +760,21 @@ export default function ApiTester({ defaultUrl, opened, close }) {
                         )}
                     </div>
 
-                    {/* ── RESPONSE PANEL (resizable) ───────────────────────────── */}
+                    {/* ── RESPONSE PANEL ───────────────────────────────────────── */}
                     {(loading || response) && (
                         <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", height: respHeight }}>
-
-                            {/* drag handle */}
                             <ResizeHandle onDrag={handleDrag} />
-
-                            {/* header bar */}
                             <div style={{
-                                display: "flex", alignItems: "center", gap: 8,
-                                padding: "7px 14px", background: C.bg1,
-                                borderBottom: `1px solid ${C.border}`,
+                                display: "flex", alignItems: "center", gap: 8, padding: "7px 14px",
+                                background: C.bg1, borderBottom: `1px solid ${C.border}`,
                                 flexShrink: 0, flexWrap: "wrap",
                             }}>
-                                <span style={{
-                                    fontFamily: C.sans, fontWeight: 700, fontSize: 10,
-                                    color: C.muted, letterSpacing: ".08em", textTransform: "uppercase",
-                                }}>Response</span>
-
+                                <span style={{ fontFamily: C.sans, fontWeight: 700, fontSize: 10, color: C.muted, letterSpacing: ".08em", textTransform: "uppercase" }}>Response</span>
                                 {loading && (
                                     <span style={{ color: C.yellow, fontSize: 11, fontFamily: C.mono, display: "flex", alignItems: "center", gap: 5 }}>
-                                        <span style={{ display: "inline-block", animation: "spin 1s linear infinite" }}>◌</span> Sending…
+                                        <span style={{ display: "inline-block", animation: "spin 1s linear infinite" }}>o</span> Sending
                                     </span>
                                 )}
-
                                 {response && <>
                                     <StatusPill code={response.status} />
                                     {response.elapsed != null && <span style={{ fontSize: 10, fontFamily: C.mono, color: C.muted }}>{response.elapsed} ms</span>}
@@ -683,13 +784,11 @@ export default function ApiTester({ defaultUrl, opened, close }) {
                                         </span>
                                     )}
                                     <div style={{ marginLeft: "auto", display: "flex", gap: 5 }}>
-                                        <Btn onClick={copyResponse}>{copyDone ? "✓ Copied" : "⧉ Copy"}</Btn>
-                                        <Btn onClick={downloadResponse}>↓ Download</Btn>
+                                        <Btn onClick={copyResponse}>{copyDone ? "Copied" : "Copy"}</Btn>
+                                        <Btn onClick={downloadResponse}>Download</Btn>
                                     </div>
                                 </>}
                             </div>
-
-                            {/* body */}
                             {response && (
                                 <div className="apit-scroll" style={{ overflowY: "auto", padding: 12, flex: 1, minHeight: 0, background: C.bg0 }}>
                                     <HighlightJSON text={response.body} />
