@@ -13,12 +13,6 @@ import CodeflowFeatures from "../../components/landing/CodeflowFeatures";
 
 export default function LandingPage() {
     /* ── Dynamic browser tab title ── */
-    useEffect(() => {
-        document.title = "Codeflow — Code Instantly in Your Browser";
-        return () => {
-            document.title = "Codeflow";
-        };
-    }, []);
 
     return (
         <Box pos="relative">

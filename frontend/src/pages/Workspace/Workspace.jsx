@@ -20,7 +20,11 @@ export default function Workspace({ templateId }) {
 
     const isUpload = templateId === "uploaded";
     const isBackend = BACKEND_TEMPLATES.has(templateId);
+    useEffect(() => {
+        const name = templateId.charAt(0).toUpperCase() + templateId.slice(1);
 
+        document.title = `Codeflow – ${name} Online Editor | Run ${name} in Browser`;
+    }, [templateId]);
     useEffect(() => {
         setProjectPath(isUpload ? "/uploaded-project" : `/${templateId}`);
     }, [templateId]);
