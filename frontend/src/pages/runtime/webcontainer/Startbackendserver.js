@@ -82,6 +82,7 @@ export async function startBackendServer(
                     const { value, done } = await reader.read()
                     if (done) break
                     const text = decode(value)
+                
 
                     // ── INSTALL COMPLETE ─────────────────────────────────────────
                     // "added X packages"  → normal install with dependencies

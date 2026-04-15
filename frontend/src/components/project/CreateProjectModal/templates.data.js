@@ -117,24 +117,5 @@ export const templateCategories = [
         ],
     },
 
-    {
-        title: "Tools",
-        id: "tools",
-        templates: [
-            {
-                id: "cli",
-                label: "Node CLI",
-                icon: Terminal,
-                color: "#22c55e",
-                description: "CLI tool starter.",
-            },
-            {
-                id: "package",
-                label: "NPM Package",
-                icon: Package,
-                color: "#cb3837",
-                description: "Library / package template.",
-            },
-        ],
-    },
+ 
 ];

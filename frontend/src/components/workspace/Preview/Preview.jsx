@@ -3,6 +3,7 @@ import { ExternalLink } from "lucide-react";
 import Loder from "../../common/Loder";
 
 export default function Preview({ previewUrl, logs }) {
+
     const [currentStep, setCurrentStep] = useState(1);
     const [showLoader, setShowLoader] = useState(true);
 

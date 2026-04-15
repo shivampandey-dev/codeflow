@@ -13,7 +13,9 @@ import {
     Expand,
     Terminal as TerminalIcon,
     StopCircle,
-    PlayCircle
+    PlayCircle,
+    Check,
+    X
 } from "lucide-react"
 
 import { useSettingsStore } from "../../../store/settingsStore"
@@ -23,14 +25,19 @@ import { loadFont } from "../../../utils/loadFont"
 import {
     startDevServer,
     killDevServer,
-    isServerRunning
 } from "../../../pages/runtime/webcontainer/startDevServer"
 
 import {
     startBackendServer,
     killBackendServer,
-    isBackendServerRunning
 } from "../../../pages/runtime/webcontainer/startBackendServer"
+
+// ── Palette for the color picker ─────────────────────────────────────────────
+const TAB_COLORS = [
+    "#22c55e", "#38bdf8", "#fb923c", "#f87171",
+    "#a78bfa", "#f472b6", "#facc15", "#34d399",
+    "#e879f9", "#67e8f9", "#fbbf24", "#a3e635"
+]
 
 export default function Terminal({
     process,
@@ -59,36 +66,49 @@ export default function Terminal({
         { id: crypto.randomUUID(), type: "main", name: tabLabel, color: tabColor }
     ])
     const [activeIndex, setActiveIndex] = useState(0)
-
-    // "booting" | "stopped" | "running"
     const [serverState, setServerState] = useState("booting")
 
-    // ── FIXED: always start in booting ────────────────────────────────────────
-    useEffect(() => {
-        setServerState("booting")
-    }, [])
+    // ── Tab edit state ────────────────────────────────────────────────────────
+    const [editingIdx, setEditingIdx] = useState(null)   // which tab is being edited
+    const [editName, setEditName] = useState("")
+    const [editColor, setEditColor] = useState("")
+    const editPopupRef = useRef(null)
+    const editInputRef = useRef(null)
 
-    // ── FIXED: webcontainer ready — stay in booting, don't check serverIsUp() ─
-    // serverIsUp() is false during install which wrongly showed the Start button
+    // Close popup on outside click
     useEffect(() => {
-        if (!webcontainer) setServerState("booting")
-    }, [webcontainer])
+        if (editingIdx === null) return
+        const onMouseDown = (e) => {
+            if (editPopupRef.current && !editPopupRef.current.contains(e.target)) {
+                setEditingIdx(null)
+            }
+        }
+        document.addEventListener("mousedown", onMouseDown)
+        return () => document.removeEventListener("mousedown", onMouseDown)
+    }, [editingIdx])
 
-    // ── FIXED: only transition based on process arriving/leaving ─────────────
-    // "stopped" only appears AFTER "running" — never before it
+    // Focus input when popup opens
+    useEffect(() => {
+        if (editingIdx !== null) {
+            setTimeout(() => editInputRef.current?.focus(), 50)
+        }
+    }, [editingIdx])
+
+    // ── Server state machine ──────────────────────────────────────────────────
+    useEffect(() => { setServerState("booting") }, [])
+    useEffect(() => { if (!webcontainer) setServerState("booting") }, [webcontainer])
     useEffect(() => {
         if (!webcontainer) return
         if (process) {
             setServerState("running")
         } else if (serverState === "running") {
-            // Was running, now process is gone → show Start button
             setServerState("stopped")
         }
-        // If still "booting", process=null is normal during install — ignore it
-    }, [process, webcontainer])
+    }, [process, webcontainer])  // eslint-disable-line react-hooks/exhaustive-deps
 
     const isMobile = useMediaQuery("(max-width:768px)")
 
+    // ── Styles ────────────────────────────────────────────────────────────────
     const iconButtonStyle = {
         background: "none",
         border: "none",
@@ -114,8 +134,7 @@ export default function Terminal({
         margin: "0 2px"
     })
 
-    // ── TAB ACTIONS ────────────────────────────────────────────────────────────
-
+    // ── Tab actions ───────────────────────────────────────────────────────────
     const addSplit = () => {
         setTerms(prev => [
             ...prev,
@@ -137,8 +156,27 @@ export default function Terminal({
         setActiveIndex(prev => Math.max(0, prev - 1))
     }
 
-    // ── SERVER CONTROL ─────────────────────────────────────────────────────────
+    // Double-click opens the name/color popup
+    const handleTabDoubleClick = (e, idx) => {
+        e.stopPropagation()
+        setEditingIdx(idx)
+        setEditName(terms[idx].name)
+        setEditColor(terms[idx].color)
+    }
 
+    const applyEdit = () => {
+        if (editingIdx === null) return
+        setTerms(prev => prev.map((t, i) =>
+            i === editingIdx
+                ? { ...t, name: editName.trim() || t.name, color: editColor || t.color }
+                : t
+        ))
+        setEditingIdx(null)
+    }
+
+    const cancelEdit = () => setEditingIdx(null)
+
+    // ── Server controls ───────────────────────────────────────────────────────
     const handleServerStopped = useCallback(() => {
         setServerState("stopped")
         onProcessChange?.(null)
@@ -165,17 +203,17 @@ export default function Terminal({
         )
     }, [webcontainer, startServer, onProcessChange, onLogsChange, handleServerStopped])
 
-    // ── RENDER ─────────────────────────────────────────────────────────────────
-
+    // ── Render ────────────────────────────────────────────────────────────────
     return (
         <div style={{
             height: "100%",
             display: "flex",
             flexDirection: "column",
             background: ui.sidebarBg,
-            minHeight: 0
+            minHeight: 0,
+            position: "relative"   // needed for popup absolute positioning
         }}>
-            {/* HEADER */}
+            {/* ── HEADER ── */}
             <div style={{
                 display: "flex",
                 borderBottom: `1px solid ${ui.border}`,
@@ -183,77 +221,69 @@ export default function Terminal({
             }}>
                 {/* TABS */}
                 <div style={{ flex: 1, display: "flex", overflowX: "auto" }}>
-                    {terms.map((term, i) => (
-                        <div
-                            key={term.id}
-                            onClick={() => setActiveIndex(i)}
-                            style={{
-                                minWidth: 130,
-                                padding: "4px 10px",
-                                fontSize: 12,
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 6,
-                                borderBottom: activeIndex === i
-                                    ? `2px solid ${accent}`
-                                    : "2px solid transparent",
-                                color: editorFg
-                            }}
-                        >
-                            <TerminalIcon
-                                size={14}
-                                color={activeIndex === i ? accent : "#64748b"}
-                            />
-                            {term.name}
-                        </div>
-                    ))}
+                    {terms.map((term, i) => {
+                        const isActive = activeIndex === i
+                        const tabAccent = term.color || accent
+                        return (
+                            <div
+                                key={term.id}
+                                onClick={() => setActiveIndex(i)}
+                                onDoubleClick={(e) => handleTabDoubleClick(e, i)}
+                                title="Double-click to rename / recolor"
+                                style={{
+                                    minWidth: 130,
+                                    padding: "4px 10px",
+                                    fontSize: 12,
+                                    cursor: "pointer",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 6,
+                                    borderBottom: isActive
+                                        ? `2px solid ${tabAccent}`
+                                        : "2px solid transparent",
+                                    color: isActive ? tabAccent : editorFg,
+                                    userSelect: "none"
+                                }}
+                            >
+                                <TerminalIcon
+                                    size={14}
+                                    color={isActive ? tabAccent : "#64748b"}
+                                />
+                                {term.name}
+                            </div>
+                        )
+                    })}
                 </div>
 
                 {/* TOOLBAR */}
                 <div style={{ display: "flex", alignItems: "center", paddingRight: 4 }}>
-
                     {serverState === "running" && (
                         <button
                             onClick={handleStop}
                             title="Stop server"
                             style={serverButtonStyle("#f87171")}
                         >
-                            <StopCircle size={13} />
-                            Stop
+                            <StopCircle size={13} /> Stop
                         </button>
                     )}
-
                     {serverState === "stopped" && (
                         <button
                             onClick={handleStart}
                             title="Start server"
                             style={serverButtonStyle("#4ade80")}
                         >
-                            <PlayCircle size={13} />
-                            Start
+                            <PlayCircle size={13} /> Start
                         </button>
                     )}
-
-                    {/* booting → no button shown */}
-
                     {serverState !== "booting" && (
-                        <div style={{
-                            width: 1,
-                            height: 14,
-                            background: ui.border,
-                            margin: "0 4px"
-                        }} />
+                        <div style={{ width: 1, height: 14, background: ui.border, margin: "0 4px" }} />
                     )}
-
                     <button onClick={() => setFullscreen(!fullscreen)} style={iconButtonStyle}>
                         {fullscreen ? <Minimize size={15} /> : <Expand size={15} />}
                     </button>
-
                     <button onClick={addSplit} style={iconButtonStyle}>
                         <SquareSplitHorizontal size={15} />
                     </button>
-
                     {terms.length > 1 && (
                         <button onClick={deleteTerminal} style={iconButtonStyle}>
                             <Trash2 size={15} />
@@ -262,7 +292,134 @@ export default function Terminal({
                 </div>
             </div>
 
-            {/* TERMINAL PANES */}
+            {/* ── TAB EDIT POPUP ── */}
+            {editingIdx !== null && (() => {
+                // Clamp popup so it doesn't overflow right edge
+                const approxLeft = editingIdx * 130
+                return (
+                    <div
+                        ref={editPopupRef}
+                        style={{
+                            position: "absolute",
+                            top: 37,
+                            left: approxLeft,
+                            zIndex: 200,
+                            background: ui.sidebarBg || "#0f172a",
+                            border: `1px solid ${ui.border}`,
+                            borderRadius: 8,
+                            padding: "12px 14px",
+                            minWidth: 210,
+                            boxShadow: "0 12px 32px rgba(0,0,0,0.5)"
+                        }}
+                    >
+                        {/* Name input */}
+                        <div style={{ fontSize: 10, color: "#64748b", marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                            Tab name
+                        </div>
+                        <input
+                            ref={editInputRef}
+                            value={editName}
+                            onChange={e => setEditName(e.target.value)}
+                            onKeyDown={e => {
+                                if (e.key === "Enter") applyEdit()
+                                if (e.key === "Escape") cancelEdit()
+                            }}
+                            placeholder="Enter name…"
+                            style={{
+                                width: "100%",
+                                background: "transparent",
+                                border: `1px solid ${ui.border}`,
+                                borderRadius: 4,
+                                color: editorFg,
+                                padding: "5px 8px",
+                                fontSize: 12,
+                                outline: "none",
+                                boxSizing: "border-box"
+                            }}
+                        />
+
+                        {/* Color picker */}
+                        <div style={{ fontSize: 10, color: "#64748b", margin: "10px 0 6px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                            Color
+                        </div>
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                            {TAB_COLORS.map(c => (
+                                <button
+                                    key={c}
+                                    onClick={() => setEditColor(c)}
+                                    title={c}
+                                    style={{
+                                        width: 22,
+                                        height: 22,
+                                        borderRadius: "50%",
+                                        background: c,
+                                        border: editColor === c
+                                            ? "2px solid #fff"
+                                            : "2px solid transparent",
+                                        outline: editColor === c ? `2px solid ${c}` : "none",
+                                        cursor: "pointer",
+                                        padding: 0,
+                                        transition: "transform 0.1s",
+                                        transform: editColor === c ? "scale(1.2)" : "scale(1)"
+                                    }}
+                                />
+                            ))}
+                        </div>
+
+                        {/* Preview swatch + actions */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
+                            <div style={{
+                                flex: 1,
+                                fontSize: 11,
+                                color: editColor,
+                                background: `${editColor}18`,
+                                border: `1px solid ${editColor}44`,
+                                borderRadius: 4,
+                                padding: "3px 8px",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap"
+                            }}>
+                                {editName || terms[editingIdx]?.name}
+                            </div>
+                            <button
+                                onClick={applyEdit}
+                                title="Apply (Enter)"
+                                style={{
+                                    background: "#22c55e22",
+                                    border: "1px solid #22c55e55",
+                                    borderRadius: 4,
+                                    color: "#22c55e",
+                                    cursor: "pointer",
+                                    padding: "4px 6px",
+                                    display: "flex",
+                                    alignItems: "center"
+                                }}
+                            >
+                                <Check size={13} />
+                            </button>
+                            <button
+                                onClick={cancelEdit}
+                                title="Cancel (Esc)"
+                                style={{
+                                    background: "#f8717122",
+                                    border: "1px solid #f8717155",
+                                    borderRadius: 4,
+                                    color: "#f87171",
+                                    cursor: "pointer",
+                                    padding: "4px 6px",
+                                    display: "flex",
+                                    alignItems: "center"
+                                }}
+                            >
+                                <X size={13} />
+                            </button>
+                        </div>
+                    </div>
+                )
+            })()}
+
+            {/* ── TERMINAL PANES ── */}
             {isMobile ? (
                 <div style={{ flex: 1, minHeight: 0 }}>
                     {terms.map((term, idx) => (
@@ -302,7 +459,7 @@ export default function Terminal({
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   TERMINAL INSTANCE (one xterm pane)
+   TERMINAL INSTANCE
 ───────────────────────────────────────────────────────────────────────────── */
 
 function TerminalInstance({
@@ -319,12 +476,16 @@ function TerminalInstance({
     const termRef = useRef(null)
     const fitAddonRef = useRef(null)
 
+    // Track isActive without causing effect re-runs
     const isActiveRef = useRef(isActive)
     useEffect(() => { isActiveRef.current = isActive }, [isActive])
 
     const lastIndexRef = useRef(0)
-    const attachedRef = useRef(false)
     const [logFlush, setLogFlush] = useState(0)
+
+    // ── FIX: increment each time the XTerm instance is recreated so that
+    //         keyboard / shell effects re-subscribe to the NEW terminal.
+    const [termVersion, setTermVersion] = useState(0)
 
     const {
         terminalFontSize,
@@ -342,6 +503,8 @@ function TerminalInstance({
 
     // ── INIT XTERM ─────────────────────────────────────────────────────────────
     useEffect(() => {
+        if (!containerRef.current) return
+
         const term = new XTerm({
             fontSize: terminalFontSize,
             fontFamily: `"${terminalFontFamily}", monospace`,
@@ -359,14 +522,23 @@ function TerminalInstance({
 
         termRef.current = term
         fitAddonRef.current = fitAddon
-
-        setTimeout(() => fitAddon.fit(), 50)
         lastIndexRef.current = 0
 
-        const ro = new ResizeObserver(() => fitAddon.fit())
+        setTimeout(() => fitAddon.fit(), 50)
+
+        const ro = new ResizeObserver(() => {
+            try { fitAddon.fit() } catch { }
+        })
         ro.observe(containerRef.current)
 
-        return () => { ro.disconnect(); term.dispose() }
+        // Signal a new terminal instance exists — this causes keyboard/shell
+        // effects to re-run and attach to the new XTerm object.
+        setTermVersion(v => v + 1)
+
+        return () => {
+            ro.disconnect()
+            term.dispose()
+        }
     }, [
         terminalFontSize, terminalFontFamily, terminalFontWeight,
         terminalFontItalic, cursorBlink, scrollback, lineHeight,
@@ -377,7 +549,7 @@ function TerminalInstance({
     useEffect(() => {
         if (!fitAddonRef.current) return
         const t = setTimeout(() => {
-            fitAddonRef.current.fit()
+            try { fitAddonRef.current?.fit() } catch { }
             if (process?.resize && termRef.current) {
                 try { process.resize(termRef.current.cols, termRef.current.rows) } catch { }
             }
@@ -385,12 +557,12 @@ function TerminalInstance({
         return () => clearTimeout(t)
     }, [fullscreen, isActive, process])
 
-    // ── PROMOTION ──────────────────────────────────────────────────────────────
+    // ── PROMOTION (tab becomes "main") ─────────────────────────────────────────
     useEffect(() => {
         if (type !== "main") return
         lastIndexRef.current = 0
         setLogFlush(n => n + 1)
-    }, [type]) // eslint-disable-line react-hooks/exhaustive-deps
+    }, [type])  // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── LOG STREAM ─────────────────────────────────────────────────────────────
     useEffect(() => {
@@ -405,16 +577,17 @@ function TerminalInstance({
 
         const filtered = newData.replace(/\r?\n?__STATUS__:[^\r\n]*\r?\n?/g, "")
         if (filtered) termRef.current.write(filtered)
-    }, [logs, logFlush])
+    }, [logs, logFlush, termVersion])   // termVersion replays logs into fresh terminal
 
     // ── KEYBOARD INPUT ─────────────────────────────────────────────────────────
+    // FIX: removed `attachedRef` guard — the cleanup + termVersion dependency
+    //      is sufficient to prevent double-attachment and to re-attach when
+    //      the XTerm instance is recreated (e.g. after theme/font changes).
     useEffect(() => {
         if (type !== "main") return
         if (!process || !termRef.current) return
-        if (attachedRef.current) return
 
-        attachedRef.current = true
-        let writer
+        let writer = null
 
         const disposable = termRef.current.onData(async (data) => {
             if (!isActiveRef.current) return
@@ -432,38 +605,48 @@ function TerminalInstance({
         return () => {
             disposable.dispose()
             try { writer?.releaseLock() } catch { }
-            attachedRef.current = false
         }
-    }, [process])
+    }, [process, type, termVersion])    // termVersion re-attaches on terminal recreate
 
     // ── SHELL MODE ─────────────────────────────────────────────────────────────
     useEffect(() => {
         if (type !== "shell") return
         if (!webcontainer || !termRef.current) return
 
+        let cancelled = false
+
         const startShell = async () => {
             const term = termRef.current
             const shell = await webcontainer.spawn("jsh", {
                 terminal: { cols: term.cols, rows: term.rows }
             })
+
+            if (cancelled) return
+
             shell.output.pipeTo(new WritableStream({
-                write(data) { term.write(data) }
+                write(data) { if (!cancelled) term.write(data) }
             }))
+
             const writer = shell.input.getWriter()
-            term.onData(data => writer.write(data))
+            term.onData(data => {
+                if (!cancelled) writer.write(data)
+            })
             term.onResize(({ cols, rows }) => {
                 try { shell.resize?.(cols, rows) } catch { }
             })
         }
 
         startShell()
-    }, [webcontainer])
+
+        return () => { cancelled = true }
+    }, [webcontainer, type, termVersion])   // termVersion re-spawns shell on terminal recreate
 
     return (
         <div style={{
             height: "100%",
             minHeight: 0,
-            border: isActive ? "2px solid #38bdf833" : "1px solid #8882"
+            border: isActive ? "2px solid #38bdf833" : "1px solid #8882",
+            boxSizing: "border-box"
         }}>
             <div ref={containerRef} style={{ height: "100%" }} />
         </div>

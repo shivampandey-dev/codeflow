@@ -54,6 +54,7 @@ export async function startDevServer(
         write("\r\n🚀 Preparing workspace...\r\n")
 
         await webcontainer.fs.mkdir("/workspace").catch(() => { })
+
         const rootFiles = await webcontainer.fs.readdir("/")
         for (const file of rootFiles) {
             if (["workspace", ".git", ".gitignore"].includes(file)) continue
@@ -85,6 +86,7 @@ export async function startDevServer(
                     const { value, done } = await reader.read()
                     if (done) break
                     const text = decode(value)
+
 
                     if (!installFlagged && /added \d+ package/i.test(text)) {
                         installFlagged = true
