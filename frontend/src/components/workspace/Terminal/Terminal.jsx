@@ -59,7 +59,7 @@ export default function Terminal({
 
     const killServer = isBackend ? killBackendServer : killDevServer
     const startServer = isBackend ? startBackendServer : startDevServer
-    const tabLabel = isBackend ? "server" : "npm dev"
+    const tabLabel = isBackend ? "server" : "Runtime"
     const tabColor = isBackend ? "#fb923c" : "#22c55e"
 
     const [terms, setTerms] = useState([
