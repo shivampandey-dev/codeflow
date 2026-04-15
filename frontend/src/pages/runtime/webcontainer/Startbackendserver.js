@@ -4,7 +4,7 @@ let signalWriter = null
 let onStopCallback = null
 let depsInstalled = false   // flips true once install is confirmed done
 
-export async function startBackendserver(
+export async function startBackendServer(
     webcontainer,
     onOutput,
     onProcessChange,
