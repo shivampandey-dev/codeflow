@@ -1,5 +1,4 @@
 import { Box } from "@mantine/core";
-import { useEffect } from "react";
 import BackgroundLanding from "../../components/landing/BackgroundLanding";
 import CTAButtons from "../../components/landing/CTAButtons";
 import SectionNeuralBackground from "../../components/common/SectionNeuralBackground";
@@ -12,10 +11,14 @@ import TechFooter from "../../components/common/TechFooter";
 import CodeflowFeatures from "../../components/landing/CodeflowFeatures";
 
 export default function LandingPage() {
-    /* ── Dynamic browser tab title ── */
-
     return (
-        <Box pos="relative">
+        <Box
+            pos="relative"
+            style={{
+                overscrollBehavior: "none",
+                WebkitOverflowScrolling: "touch",
+            }}
+        >
             {/* ── HERO ── */}
             <Box pos="relative" mih="100vh">
                 <BackgroundLanding />
@@ -35,7 +38,7 @@ export default function LandingPage() {
                     width: "100%",
                 }}
             >
-                {/* Subtle neural mesh */}
+                {/* Subtle neural mesh — skips itself on mobile */}
                 <SectionNeuralBackground />
 
                 {/* Top-edge radial fade so hero bleeds into content */}
@@ -51,13 +54,10 @@ export default function LandingPage() {
                 />
 
                 <Box style={{ position: "relative", zIndex: 2, width: "100%" }}>
-
                     {/* SECTION 1 — live coding demo */}
-                    {/* "See your code run as you type — no installs, no setup." */}
                     <CodeTransformSection />
 
                     {/* SECTION 2 — feature cards */}
-                    {/* "Everything a dev environment needs, zero the friction." */}
                     <SectionHero
                         title="Everything You Need"
                         subtitle="A full dev environment that lives in your browser — terminal, packages, frameworks and all."
@@ -65,7 +65,6 @@ export default function LandingPage() {
                     <CodeflowFeatures />
 
                     {/* SECTION 3 — workflow pipeline */}
-                    {/* "Browser → Type → Test → Output → Download" */}
                     <SectionHero
                         title="From Idea to Output in Seconds"
                         subtitle="Open a template, write code, test it live, download your project. No CLI required."

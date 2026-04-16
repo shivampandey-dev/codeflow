@@ -33,7 +33,7 @@ export default function BackgroundLanding() {
     const innerSize = isMobile ? "min(60vw,  230px)" : "420px";
 
     const particles = useMemo(() => {
-        const count = isMobile ? 10 : 20;
+        const count = isMobile ? 5 : 20;
         return Array.from({ length: count }, () => ({
             size: Math.random() * 4 + 2,
             top: Math.random() * 100,
@@ -46,7 +46,7 @@ export default function BackgroundLanding() {
     return (
         <Box
             style={{
-                position: "fixed", inset: 0, overflow: "hidden",
+                position: "absolute", inset: 0, overflow: "hidden",
                 background: "#010205", zIndex: -1,
                 transform: "translateZ(0)", willChange: "transform",
                 touchAction: "none", pointerEvents: "none",

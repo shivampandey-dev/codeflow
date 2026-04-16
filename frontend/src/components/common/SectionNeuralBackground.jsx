@@ -1,29 +1,34 @@
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 
-/**
- * SectionNeuralBackground
- * Bug fix: lines were generated inside render with Math.random(),
- * causing them to re-randomize on every re-render and thrash the DOM.
- * Now memoised so positions are stable for the life of the component.
- */
 export default function SectionNeuralBackground() {
     const ref = useRef(null);
 
-    /* ── Stable line positions — generated ONCE ── */
+    const [isMobile, setIsMobile] = useState(
+        () => typeof window !== "undefined" && window.innerWidth < 768
+    );
+
+    useEffect(() => {
+        const check = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener("resize", check, { passive: true });
+        return () => window.removeEventListener("resize", check);
+    }, []);
+
+    /* Stable line positions — generated ONCE per isMobile change */
     const lines = useMemo(
         () =>
-            Array.from({ length: 60 }, () => ({
+            Array.from({ length: isMobile ? 0 : 60 }, () => ({
                 x1: Math.random() * 100,
                 y1: Math.random() * 100,
                 x2: Math.random() * 100,
                 y2: Math.random() * 100,
                 dur: `${6 + Math.random() * 6}s`,
             })),
-        [] // empty deps = computed once, never again
+        [isMobile]
     );
 
-    /* ── Parallax on mousemove (passive — never blocks scroll) ── */
+    /* Parallax on mousemove — desktop only, passive so it never blocks scroll */
     useEffect(() => {
+        if (isMobile) return;
         let rafId;
         const move = (e) => {
             cancelAnimationFrame(rafId);
@@ -39,7 +44,10 @@ export default function SectionNeuralBackground() {
             window.removeEventListener("mousemove", move);
             cancelAnimationFrame(rafId);
         };
-    }, []);
+    }, [isMobile]);
+
+    /* Skip rendering entirely on mobile — saves GPU & main thread */
+    if (isMobile) return null;
 
     return (
         <svg
@@ -66,7 +74,6 @@ export default function SectionNeuralBackground() {
                         stroke="rgba(59,130,246,0.22)"
                         strokeWidth="1"
                     >
-                        {/* Subtle opacity pulse — gives the mesh a living feel */}
                         <animate
                             attributeName="opacity"
                             values="0.15;0.65;0.15"
