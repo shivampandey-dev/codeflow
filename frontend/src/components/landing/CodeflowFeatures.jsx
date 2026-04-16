@@ -1,5 +1,6 @@
 import { Box, Text } from "@mantine/core";
 import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
 import {
     Globe,
     Cpu,
@@ -14,7 +15,6 @@ import {
 } from "lucide-react";
 
 /* ================= ICON BOX ================= */
-
 function IconBox({ Icon, glow }) {
     return (
         <Box
@@ -25,12 +25,10 @@ function IconBox({ Icon, glow }) {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-
                 background: "rgba(15,23,42,0.6)",
                 border: "1px solid rgba(255,255,255,0.12)",
                 backdropFilter: "blur(10px)",
-
-                boxShadow: `0 0 25px ${glow}55`,
+                boxShadow: `0 0 20px ${glow}40`,
             }}
         >
             <Icon size={20} color={glow} />
@@ -38,8 +36,7 @@ function IconBox({ Icon, glow }) {
     );
 }
 
-/* ================= ICON CLUSTER VARIANTS ================= */
-
+/* ================= ICON CLUSTER ================= */
 function IconCluster({ icons, variant = "cluster", glow }) {
     if (variant === "orbit") {
         return (
@@ -61,11 +58,7 @@ function IconCluster({ icons, variant = "cluster", glow }) {
                             justifyContent: "center",
                         }}
                     >
-                        <Box
-                            style={{
-                                transform: `translate(${28 + i * 6}px)`,
-                            }}
-                        >
+                        <Box style={{ transform: `translate(${28 + i * 6}px)` }}>
                             <IconBox Icon={Icon} glow={glow} />
                         </Box>
                     </motion.div>
@@ -137,7 +130,6 @@ function IconCluster({ icons, variant = "cluster", glow }) {
 }
 
 /* ================= DATA ================= */
-
 const cards = [
     {
         title: "Browser-native runtime",
@@ -170,22 +162,30 @@ const cards = [
 ];
 
 /* ================= MAIN COMPONENT ================= */
-
 export default function CodeflowFeatureCards() {
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const check = () => setIsMobile(window.innerWidth < 768);
+        check();
+
+        window.addEventListener("resize", check);
+        return () => window.removeEventListener("resize", check);
+    }, []);
+
     return (
         <Box
             style={{
                 width: "100%",
                 maxWidth: 1300,
                 margin: "70px auto",
-                padding: "0 20px",
+                padding: isMobile ? "0 12px" : "0 20px", // ✅ FIXED
             }}
         >
             <Box
                 style={{
                     display: "grid",
-                    gridTemplateColumns:
-                        "repeat(auto-fit, minmax(260px, 1fr))",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
                     gap: 24,
                 }}
             >
@@ -193,10 +193,7 @@ export default function CodeflowFeatureCards() {
                     <motion.div
                         key={card.title}
                         initial={{ opacity: 0, y: 30 }}
-                        whileInView={{
-                            opacity: 1,
-                            y: 0,
-                        }}
+                        whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{
                             duration: 0.45,
@@ -209,28 +206,22 @@ export default function CodeflowFeatureCards() {
                     >
                         <Box
                             style={{
-                                padding: 24,
-                                borderRadius: 18,
-                                minHeight: 200,
-
+                                padding: 20,
+                                borderRadius: 16,
+                                minHeight: 190,
                                 background: `linear-gradient(
-                                    135deg,
-                                    #020617,
-                                    #020617 60%,
-                                    ${card.glow}22
-                                )`,
-
-                                border:
-                                    "1px solid rgba(255,255,255,0.06)",
-
-                                boxShadow:
-                                    "0 20px 50px rgba(0,0,0,0.6)",
-
+                  135deg,
+                  #020617,
+                  #020617 60%,
+                  ${card.glow}22
+                )`,
+                                border: "1px solid rgba(255,255,255,0.06)",
+                                boxShadow: "0 15px 40px rgba(0,0,0,0.6)",
                                 position: "relative",
                                 overflow: "hidden",
                             }}
                         >
-                            {/* radial glow */}
+                            {/* Glow layer */}
                             <Box
                                 style={{
                                     position: "absolute",
@@ -248,10 +239,11 @@ export default function CodeflowFeatureCards() {
 
                             <Text
                                 style={{
-                                    fontSize: 17,
+                                    fontSize: 16,
                                     fontWeight: 600,
                                     color: "#e2e8f0",
-                                    marginBottom: 8,
+                                    marginTop: 12,
+                                    marginBottom: 6,
                                 }}
                             >
                                 {card.title}
@@ -260,7 +252,7 @@ export default function CodeflowFeatureCards() {
                             <Text
                                 style={{
                                     color: "#94a3b8",
-                                    fontSize: 13.5,
+                                    fontSize: 13,
                                     lineHeight: 1.6,
                                 }}
                             >

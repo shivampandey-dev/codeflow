@@ -1,4 +1,5 @@
 import { Box } from "@mantine/core";
+import { useEffect } from "react";
 import BackgroundLanding from "../../components/landing/BackgroundLanding";
 import CTAButtons from "../../components/landing/CTAButtons";
 import SectionNeuralBackground from "../../components/common/SectionNeuralBackground";
@@ -11,16 +12,15 @@ import TechFooter from "../../components/common/TechFooter";
 import CodeflowFeatures from "../../components/landing/CodeflowFeatures";
 
 export default function LandingPage() {
+    /* ── Dynamic browser tab title ── */
+
     return (
-        <Box
-            pos="relative"
-            style={{
-                overscrollBehavior: "none",
-                WebkitOverflowScrolling: "touch",
-            }}
-        >
+        <Box pos="relative">
             {/* ── HERO ── */}
-            <Box pos="relative" mih="100vh">
+            <Box pos="relative" mih="100vh" style={{
+                overscrollBehavior: "none",
+                WebkitOverflowScrolling: "touch", // momentum scroll on iOS
+            }}>
                 <BackgroundLanding />
             </Box>
 
@@ -38,7 +38,7 @@ export default function LandingPage() {
                     width: "100%",
                 }}
             >
-                {/* Subtle neural mesh — skips itself on mobile */}
+                {/* Subtle neural mesh */}
                 <SectionNeuralBackground />
 
                 {/* Top-edge radial fade so hero bleeds into content */}
@@ -46,18 +46,36 @@ export default function LandingPage() {
                     style={{
                         position: "absolute",
                         inset: 0,
-                        background:
-                            "radial-gradient(ellipse at top, rgba(59,130,246,0.10) 0%, rgba(1,2,5,1) 55%)",
+                        background: `
+radial-gradient(ellipse 85% 50% at 50% 8%,
+
+    rgba(80, 40, 200, 0.20) 0%, transparent 60%),
+
+  radial-gradient(ellipse 50% 30% at 50% 55%,
+
+    rgba(0, 180, 130, 0.08) 0%, transparent 55%),
+
+  radial-gradient(ellipse 70% 30% at 20% 40%,
+
+    rgba(60, 20, 160, 0.10) 0%, transparent 50%),
+
+  linear-gradient(to bottom,
+
+    #000208 0%, #040916 35%, #030810 65%, #020a14 100%);
+  `,
                         pointerEvents: "none",
                         zIndex: 1,
                     }}
                 />
 
                 <Box style={{ position: "relative", zIndex: 2, width: "100%" }}>
+
                     {/* SECTION 1 — live coding demo */}
+                    {/* "See your code run as you type — no installs, no setup." */}
                     <CodeTransformSection />
 
                     {/* SECTION 2 — feature cards */}
+                    {/* "Everything a dev environment needs, zero the friction." */}
                     <SectionHero
                         title="Everything You Need"
                         subtitle="A full dev environment that lives in your browser — terminal, packages, frameworks and all."
@@ -65,6 +83,7 @@ export default function LandingPage() {
                     <CodeflowFeatures />
 
                     {/* SECTION 3 — workflow pipeline */}
+                    {/* "Browser → Type → Test → Output → Download" */}
                     <SectionHero
                         title="From Idea to Output in Seconds"
                         subtitle="Open a template, write code, test it live, download your project. No CLI required."

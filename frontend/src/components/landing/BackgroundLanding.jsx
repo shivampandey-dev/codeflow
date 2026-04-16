@@ -28,10 +28,9 @@ function useIsMobile() {
 export default function BackgroundLanding() {
     const isMobile = useIsMobile();
 
-    const outerSize = isMobile ? "min(120vw, 460px)" : "820px";
-    const middleSize = isMobile ? "min(88vw,  340px)" : "600px";
-    const innerSize = isMobile ? "min(60vw,  230px)" : "420px";
-
+    const outerSize = isMobile ? "min(100vw, 380px)" : "640px"; // ↓ from 820
+    const middleSize = isMobile ? "min(75vw, 300px)" : "500px"; // ↓ from 600
+    const innerSize = isMobile ? "min(50vw, 200px)" : "350px"; // ↓ from 420
     const particles = useMemo(() => {
         const count = isMobile ? 5 : 20;
         return Array.from({ length: count }, () => ({
@@ -298,9 +297,9 @@ function Ring({ size, speed, reverse, glow, badges = [], color, orbitCount = 4, 
                             >
                                 <Box
                                     style={{
-                                        padding: isMobile ? "2px 7px" : "3px 12px",
-                                        borderRadius: 20,
-                                        fontSize: isMobile ? 8 : 11,
+                                        padding: isMobile ? "1px 6px" : "1px 10px",
+                                        borderRadius: 16,    
+                                        fontSize: isMobile ? 5 : 9, 
                                         letterSpacing: 0.4,
                                         fontWeight: 700,
                                         color: "#e2e8f0",

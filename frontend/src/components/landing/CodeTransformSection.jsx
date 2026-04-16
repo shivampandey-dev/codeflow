@@ -10,7 +10,7 @@ const demos = [
             `import React from "react";`,
             ``,
             `export default function App() {`,
-            `  const name = "Shivam";`,
+            `  const name = "User";`,
             ``,
             `  return (`,
             `    <div style={{ padding: 20 }}>`,
@@ -19,7 +19,7 @@ const demos = [
             `  );`,
             `}`,
         ],
-        output: "Hello Shivam",
+        output: "Hello User",
     },
 ];
 
