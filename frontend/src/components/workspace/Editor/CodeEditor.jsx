@@ -224,12 +224,14 @@ export default function CodeEditor({ previewUrl: previewUrlProp, fullscreen, set
                     paddingRight: 4,
                     background: ui.sidebarBg,
                 }}>
-                    <Tooltip label={fullscreen ? "Exit Fullscreen" : "Enter Fullscreen"} withArrow
-                        styles={{ tooltip: { fontSize: "11px", padding: "4px 8px" } }}>
-                        <ActionIcon variant="subtle" onClick={() => setFullscreen(!fullscreen)}>
-                            {fullscreen ? <Minimize size={16} /> : <Expand size={16} />}
-                        </ActionIcon>
-                    </Tooltip>
+                    {setFullscreen && typeof setFullscreen === "function" && (
+                        <Tooltip label={fullscreen ? "Exit Fullscreen" : "Enter Fullscreen"} withArrow
+                            styles={{ tooltip: { fontSize: "11px", padding: "4px 8px" } }}>
+                            <ActionIcon variant="subtle" onClick={() => setFullscreen(!fullscreen)}>
+                                {fullscreen ? <Minimize size={16} /> : <Expand size={16} />}
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
 
                     <Tooltip label="Editor Settings" withArrow
                         styles={{ tooltip: { fontSize: "11px", padding: "4px 8px" } }}>

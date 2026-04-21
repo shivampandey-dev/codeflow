@@ -120,7 +120,11 @@ function MobileLayout({ previewUrl, logs, process, webcontainer, projectPath }) 
                             <FileTree webcontainer={webcontainer} logs={logs} />
                         )}
                         {key === "editor" && (
-                            <CodeEditor previewUrl={previewUrl} />
+                            <CodeEditor
+                                previewUrl={previewUrl}
+                                fullscreen={false}
+                                setFullscreen={() => { }}
+                            />
                         )}
                         {key === "preview" && (
                             <Box style={{ height: "100%", width: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
