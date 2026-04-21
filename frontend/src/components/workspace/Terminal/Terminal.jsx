@@ -421,19 +421,28 @@ export default function Terminal({
 
             {/* ── TERMINAL PANES ── */}
             {isMobile ? (
-                <div style={{ flex: 1, minHeight: 0 }}>
+                <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
                     {terms.map((term, idx) => (
-                        <TerminalInstance
+                        <div
                             key={term.id}
-                            {...term}
-                            process={process}
-                            logs={logs}
-                            webcontainer={webcontainer}
-                            isActive={activeIndex === idx}
-                            editorBg={editorBg}
-                            editorFg={editorFg}
-                            fullscreen={fullscreen}
-                        />
+                            style={{
+                                position: "absolute",
+                                inset: 0,
+                                display: activeIndex === idx ? "flex" : "none",
+                                flexDirection: "column",
+                            }}
+                        >
+                            <TerminalInstance
+                                {...term}
+                                process={process}
+                                logs={logs}
+                                webcontainer={webcontainer}
+                                isActive={activeIndex === idx}
+                                editorBg={editorBg}
+                                editorFg={editorFg}
+                                fullscreen={fullscreen}
+                            />
+                        </div>
                     ))}
                 </div>
             ) : (
